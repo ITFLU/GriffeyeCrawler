@@ -1,6 +1,8 @@
 # General files
 workfiles/
 report_all.csv
+result.txt
+pathdetails.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
