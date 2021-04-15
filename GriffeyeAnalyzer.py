@@ -32,7 +32,7 @@ class Device:
         self.categories = { category: Category(category, initial_date) }
         self.legal_count = 0
         self.illegal_count = 0
-    
+
     def addDate(self, category, date):
         if category not in self.categories.keys():
             self.categories[category] = Category(category, date)
@@ -54,7 +54,7 @@ class Device:
             return None
         else:
             return self.categories[category]
-    
+
     def getCounts(self):
         """
         returns a tuple with total count, legal count & illegal count of the device
@@ -63,7 +63,6 @@ class Device:
 
 
 class Category:
-
     def __init__(self, name, initial_date):
         self.name = name
         self.legality = category_legality.get(name, True)
@@ -75,7 +74,7 @@ class Category:
         self.tot_count = 0
         self.paths = {}
         self.cachepaths = {}
-    
+
     def addDate(self, date):
         if date < self.min_date:
             self.min_date = date
@@ -134,13 +133,13 @@ class Category:
 
     def getDateRangeDays(self):
         return (self.max_date - self.min_date).days + 1
-    
+
     def getCounts(self):
         """
         returns a tuple with total count, picture count & video count of the category
         """
         return (self.tot_count, self.pic_count, self.vid_count)
-    
+
     def getGroupedDates(self):
         result = ""
         for year in sorted(self.date_groups.keys()):
@@ -239,7 +238,7 @@ def analyzeFile(filename):
         # update progressbar
         progress(counter, linecount)
 
-    file_input.close() 
+    file_input.close()
     return counter
 
 def writeOutputfileTxt():
@@ -267,17 +266,17 @@ def writeOutputfileTxt():
             # count & mediatype
             file_result.write("Menge/Dateityp:\t")
             if cat.getCounts()[1] > 0:
+                text = "Bild"
                 if cat.getCounts()[1] > 1:
-                    file_result.write("{} Bilder".format(cat.getCounts()[1]))
-                else:
-                    file_result.write("{} Bild".format(cat.getCounts()[1]))
+                    text = "Bilder"
+                file_result.write("{} {}".format(cat.getCounts()[1], text))
                 if cat.getCounts()[2] > 0:
                     file_result.write(", ")
             if cat.getCounts()[2] > 0:
+                text = "Video"
                 if cat.getCounts()[2] > 1:
-                    file_result.write("{} Videos".format(cat.getCounts()[2]))
-                else:
-                    file_result.write("{} Video".format(cat.getCounts()[2]))
+                    text = "Videos"
+                file_result.write("{} {}".format(cat.getCounts()[2], text))
             file_result.write("\n")
             if category_sort[c] != "Legale Pornographie":
                 # daterange
@@ -290,7 +289,7 @@ def writeOutputfileTxt():
                 perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
                 file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
                 file_result.write("\n")
-                # paths 
+                # paths
                 file_result.write("Speicherorte:\t")
                 file_result.write("\n")
 
@@ -315,7 +314,7 @@ def writeOutputfileTxt():
     file_result.close()
 
 def writeOutputfileDocx():
-    print("docx")
+    print("TODO: docx")
 
 def writePathDetails():
     file_result = open(config["result"]["pathdetails_name"],"w", encoding="utf-8")
@@ -427,12 +426,12 @@ try:
 
     # get linecount for progressbar
     linecount = getLinecount(input_filename)
-    
+
     # analyze file
     print("Analysiere Datei '{}'...".format(input_filename))
     analyzeFile(input_filename)
     print()
-    
+
     # process data
     print("Verarbeite Datensätze...")
     file_input = open(input_filename, "r", encoding="utf16")
@@ -456,10 +455,10 @@ try:
         device.addFile(data_category, data_path, data_type, data_date)
         # update progressbar
         progress(counter, linecount)
-    
+
     file_input.close()
     print()
-    
+
     # write output-files
     print("Schreibe Ergebnisdatei...")
     if result_format == "txt":
