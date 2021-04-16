@@ -20,9 +20,11 @@ import sys
 import json
 import traceback
 from datetime import datetime
-# from docx import Document
-# from docx.shared import Inches
-# from docx.shared import Pt
+from docx import Document
+from docx.shared import Inches
+from docx.shared import Pt
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 
 
@@ -314,8 +316,69 @@ def writeOutputfileTxt():
     file_result.close()
 
 def writeOutputfileDocx():
-    print("TODO: docx")
+    tables = ["Table1", "Table2", "Table3"]
+    records = (
+        ("Menge/Dateityp:", "x Bilder, x Videos"),
+        ("Erstellung auf Datenträger:", "01.01.1990 - 01.01.2020"),
+        ("Verteilung im Zeitraum:", " "),
+        ("Anteil Browsercache:", "50%"),
+        ("Speicherort(e):", " ")
+    )
+    text_fontname = "Arial"
+    text_fontsize = Pt(11)
+    table_fontsize = Pt(8)
 
+    document = Document()
+    document.add_heading("GRIFFEYE-ANALYZER - Ergebnis vom {}".format(datetime.now().strftime("%d.%m.%Y")), 1)
+    p = document.add_paragraph()
+    run = p.add_run("Analysierte Datei:\t{}\nAnzahl Datensätze:\t{}".format(input_filename, linecount))
+    run.font.name = text_fontname
+    run.font.size = text_fontsize
+
+    for t in tables:
+        table = document.add_table(rows=1, cols=2, style="TableGrid")
+        # format header
+        hdr_cells = table.rows[0].cells
+        # cell merging
+        hdr_cells[0].merge(hdr_cells[1])
+        hdr_cells[0].text = t
+        # background color
+        cellprop = hdr_cells[0]._tc.get_or_add_tcPr()
+        cellshade = OxmlElement("w:shd")
+        cellshade.set(qn("w:fill"), "#CCCCCC")
+        cellprop.append(cellshade)
+        # font
+        run = hdr_cells[0].paragraphs[0].runs[0]
+        run.font.name = text_fontname
+        run.font.size = table_fontsize
+        run.font.bold = True
+
+        # fill data
+        for name, val in records:
+            row_cells = table.add_row().cells
+            row_cells[0].text = name
+            row_cells[1].text = val
+        # format table
+        for row in table.rows[1:]:
+            i=-1
+            for cell in row.cells:
+                i+=1
+                # cell height
+                # p = cell.paragraphs[0]
+                # p.space_before = Pt(6)
+                # p.space_after = Pt(6)
+                # p.left_indent = Pt(0)
+                # font
+                cell.height = Pt(50)
+                run = cell.paragraphs[0].runs[0]
+                run.font.name = text_fontname
+                run.font.size = table_fontsize
+                if i == 0:
+                    # name-column bold
+                    run.font.bold = True
+        document.add_paragraph()
+    document.save(result_filename)
+    
 def writePathDetails():
     file_result = open(config["result"]["pathdetails_name"],"w", encoding="utf-8")
     # write results of file-analyze
@@ -399,7 +462,6 @@ try:
     config = json.loads(data)
     input_filename = config["input"]["filename"]
     result_filename = config["result"]["filename"]
-    result_format = config["result"]["format"]
     category_legality = {}
     category_sort = {}
     for cat in config["categories"]:
@@ -414,14 +476,13 @@ try:
 
     # ask for names & options
     # ...temp for development...
-    # input_filename = input("Name des Input-CSV (Default: {}) > ".format(input_filename)) or input_filename
-    # result_filename = input("Name der Ergebnisdatei (Default: {}) > ".format(result_filename)) or result_filename
-    # default_format = result_format
-    # if ".docx" in result_filename:
-    #     default_format = "docx"
-    # if ".txt" in result_filename:
-    #     default_format = "txt"
-    # result_format = input("Format der Ergebnisdatei (Default: {}) [txt, docx] > ".format(default_format)) or default_format
+    input_filename = input("Name des Input-CSV (Default: {}) > ".format(input_filename)) or input_filename
+    result_filename = input("Name der Ergebnisdatei (Default: {}) [.txt, .docx] > ".format(result_filename)) or result_filename
+    result_format = "txt"
+    if ".docx" in result_filename:
+        result_format = "docx"
+    if ".txt" in result_filename:
+        result_format = "txt"
     print()
 
     # get linecount for progressbar
