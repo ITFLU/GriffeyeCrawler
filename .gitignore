@@ -2,6 +2,7 @@
 workfiles/
 report_all.csv
 result.txt
+result.docx
 pathdetails.txt
 
 # Byte-compiled / optimized / DLL files
