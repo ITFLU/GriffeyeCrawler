@@ -20,11 +20,13 @@ import sys
 import json
 import traceback
 from datetime import datetime
+# docx...
 from docx import Document
 from docx.shared import Inches
 from docx.shared import Pt
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.enum.table import WD_ALIGN_VERTICAL
 
 
 
@@ -327,6 +329,7 @@ def writeOutputfileDocx():
     text_fontname = "Arial"
     text_fontsize = Pt(11)
     table_fontsize = Pt(8)
+    table_rowheight = Pt(15)
 
     document = Document()
     document.add_heading("GRIFFEYE-ANALYZER - Ergebnis vom {}".format(datetime.now().strftime("%d.%m.%Y")), 1)
@@ -336,7 +339,7 @@ def writeOutputfileDocx():
     run.font.size = text_fontsize
 
     for t in tables:
-        table = document.add_table(rows=1, cols=2, style="TableGrid")
+        table = document.add_table(rows=1, cols=2, style="Table Grid")
         # format header
         hdr_cells = table.rows[0].cells
         # cell merging
@@ -347,6 +350,9 @@ def writeOutputfileDocx():
         cellshade = OxmlElement("w:shd")
         cellshade.set(qn("w:fill"), "#CCCCCC")
         cellprop.append(cellshade)
+        # row alignment
+        table.rows[0].height = table_rowheight
+        hdr_cells[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         # font
         run = hdr_cells[0].paragraphs[0].runs[0]
         run.font.name = text_fontname
@@ -363,13 +369,9 @@ def writeOutputfileDocx():
             i=-1
             for cell in row.cells:
                 i+=1
-                # cell height
-                # p = cell.paragraphs[0]
-                # p.space_before = Pt(6)
-                # p.space_after = Pt(6)
-                # p.left_indent = Pt(0)
+                # cell alignment
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                 # font
-                cell.height = Pt(50)
                 run = cell.paragraphs[0].runs[0]
                 run.font.name = text_fontname
                 run.font.size = table_fontsize
