@@ -4,7 +4,7 @@
 	},
 
 	"result": {
-		"filename": "result.txt",
+		"filename": "result.docx",
 		"number_of_showed_paths": 5,
 		"generate_pathdetails": true,
 		"pathdetails_name": "pathdetails.txt"
