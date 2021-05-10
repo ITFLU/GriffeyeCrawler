@@ -146,6 +146,9 @@ class Category:
         return (self.tot_count, self.pic_count, self.vid_count)
     
     def getCountsString(self):
+        """
+        returns a string with formatted picture- & videos-count
+        """
         result = ""
         # pictures
         if self.pic_count > 0:
@@ -166,6 +169,9 @@ class Category:
         return result
 
     def getGroupedDates(self):
+        """
+        returns a string with the percentage of illegals files per year
+        """
         result = ""
         for year in sorted(self.date_groups.keys()):
             # calculate percentage of total files
@@ -191,6 +197,9 @@ class ColumnNotFoundException(Exception):
 
 
 def progress(count, total, status=''):
+    """
+    handling of the progressbar
+    """
     bar_len = 60
     filled_len = int(round(bar_len * count / float(total)))
     percents = round(100.0 * count / float(total), 1)
@@ -214,6 +223,9 @@ def getLinecount(filename):
     return counter
 
 def getTitleString(title, symbol="-", length=70):
+    """
+    creates a titleline with centered text
+    """
     half_length = (length//2)-1  # including blank
     half_title = (len(title)//2)-1  # including blank
     symbol_count = half_length-half_title
@@ -223,6 +235,9 @@ def getTitleString(title, symbol="-", length=70):
     return symbol*symbol_count+" "+title+" "+symbol*symbol_count+addition
 
 def shortenPath(path):
+    """
+    shortens the filepath by the first two directories
+    """
     first = path[path.find(os.path.sep)+1:]
     return first[first.find(os.path.sep)+1:]
 
@@ -330,13 +345,6 @@ def writeOutputfileTxt():
     file_result.close()
 
 def writeOutputfileDocx():
-    records = (
-        ("Menge/Dateityp:", "x Bilder, x Videos"),
-        ("Erstellung auf Datenträger:", "01.01.1990 - 01.01.2020"),
-        ("Verteilung im Zeitraum:", " "),
-        ("Anteil Browsercache:", "50%"),
-        ("Speicherort(e):", " ")
-    )
     text_fontname = "Arial"
     text_fontsize = Pt(11)
     table_fontsize = Pt(8)
@@ -415,8 +423,10 @@ def writeOutputfileDocx():
                 for k in sorted(cat.paths, key=cat.paths.get, reverse=True):
                     i += 1
                     if i > config["result"]["number_of_showed_paths"]:
-                        break;
-                    rows += "- {}\n".format(shortenPath(k))
+                        break
+                    if i > 1:
+                        rows += "\n"
+                    rows += "- {}".format(shortenPath(k))
                 # # if available, write other caches
                 # if len(cat.cachepaths)>0:
                 #     file_result.write("    > Caches <\n")
@@ -445,6 +455,9 @@ def writeOutputfileDocx():
         document.save(result_filename)
     
 def writePathDetails():
+    """
+    creates the outputfile (txt) with detailed information
+    """
     file_result = open(config["result"]["pathdetails_name"],"w", encoding="utf-8")
     # write results of file-analyze
     file_result.write("GRIFFEYE-ANALYZER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
@@ -494,7 +507,6 @@ def writePathDetails():
                     file_result.write("- {} >>> {}\n".format(k, str(cat.cachepaths[k])))
 
         file_result.write("\n")
-
         # update progressbar
         progress(counter, len(devices))
 
@@ -528,7 +540,6 @@ try:
             browser_names.append(cac["name"])
 
     # ask for names & options
-    # ...temp for development...
     input_filename = input("Name des Input-CSV (Default: {}) > ".format(input_filename)) or input_filename
     result_filename = input("Name der Ergebnisdatei (Default: {}) [.txt, .docx] > ".format(result_filename)) or result_filename
     result_format = "txt"
@@ -604,5 +615,4 @@ except Exception as exp:
     # print(exp)
 
 print()
-# ...temp for development...
-# input()
+input()
