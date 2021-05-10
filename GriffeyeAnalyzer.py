@@ -16,15 +16,18 @@ Author:  Michael Wicki
 Version: 09.04.2021
 """
 
+import os
 import sys
 import json
 import traceback
 from datetime import datetime
+# docx...
 from docx import Document
 from docx.shared import Inches
 from docx.shared import Pt
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.enum.table import WD_ALIGN_VERTICAL
 
 
 
@@ -141,6 +144,26 @@ class Category:
         returns a tuple with total count, picture count & video count of the category
         """
         return (self.tot_count, self.pic_count, self.vid_count)
+    
+    def getCountsString(self):
+        result = ""
+        # pictures
+        if self.pic_count > 0:
+            result += "{} ".format(self.pic_count)
+            if self.pic_count > 1:
+                result += "Bilder"
+            else:
+                result += "Bild"
+            if self.vid_count > 0:
+                result += ", "
+        # videos
+        if self.vid_count > 0:
+            result += "{} ".format(self.vid_count)
+            if self.vid_count > 1:
+                result += "Videos"
+            else:
+                result += "Video"
+        return result
 
     def getGroupedDates(self):
         result = ""
@@ -199,6 +222,10 @@ def getTitleString(title, symbol="-", length=70):
         addition = symbol
     return symbol*symbol_count+" "+title+" "+symbol*symbol_count+addition
 
+def shortenPath(path):
+    first = path[path.find(os.path.sep)+1:]
+    return first[first.find(os.path.sep)+1:]
+
 def checkColumns(header):
     """
     check for needed columns & fill columnindex-dictionary for column access with columnname
@@ -245,7 +272,7 @@ def analyzeFile(filename):
 
 def writeOutputfileTxt():
     file_result = open(result_filename,"w", encoding="utf-8")
-    # write results of file-analyze
+    # write results of file-analysis
     file_result.write("GRIFFEYE-ANALYZER - Ergebnis vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*43+"\n")
     file_result.write("Analysierte Datei:     {}\n".format(input_filename))
@@ -267,19 +294,7 @@ def writeOutputfileTxt():
             file_result.write("\n{}\n".format(getTitleString(cat.name, "\u0387")))
             # count & mediatype
             file_result.write("Menge/Dateityp:\t")
-            if cat.getCounts()[1] > 0:
-                text = "Bild"
-                if cat.getCounts()[1] > 1:
-                    text = "Bilder"
-                file_result.write("{} {}".format(cat.getCounts()[1], text))
-                if cat.getCounts()[2] > 0:
-                    file_result.write(", ")
-            if cat.getCounts()[2] > 0:
-                text = "Video"
-                if cat.getCounts()[2] > 1:
-                    text = "Videos"
-                file_result.write("{} {}".format(cat.getCounts()[2], text))
-            file_result.write("\n")
+            file_result.write("{}\n".format(cat.getCountsString()))
             if category_sort[c] != "Legale Pornographie":
                 # daterange
                 file_result.write("Erstellung auf Datenträger:\t{}".format(cat.getDateRange()))
@@ -294,14 +309,13 @@ def writeOutputfileTxt():
                 # paths
                 file_result.write("Speicherorte:\t")
                 file_result.write("\n")
-
                 # show top-paths
                 i = 0
                 for k in sorted(cat.paths, key=cat.paths.get, reverse=True):
                     i += 1
                     if i > config["result"]["number_of_showed_paths"]:
                         break;
-                    file_result.write("- {}\n".format(k))
+                    file_result.write("- {}\n".format(shortenPath(k)))
                 # if available, write other caches
                 if len(cat.cachepaths)>0:
                     file_result.write("    > Caches <\n")
@@ -316,7 +330,6 @@ def writeOutputfileTxt():
     file_result.close()
 
 def writeOutputfileDocx():
-    tables = ["Table1", "Table2", "Table3"]
     records = (
         ("Menge/Dateityp:", "x Bilder, x Videos"),
         ("Erstellung auf Datenträger:", "01.01.1990 - 01.01.2020"),
@@ -327,57 +340,109 @@ def writeOutputfileDocx():
     text_fontname = "Arial"
     text_fontsize = Pt(11)
     table_fontsize = Pt(8)
+    table_rowheight = Pt(14)
 
     document = Document()
+    # write results of file-analysis
     document.add_heading("GRIFFEYE-ANALYZER - Ergebnis vom {}".format(datetime.now().strftime("%d.%m.%Y")), 1)
     p = document.add_paragraph()
     run = p.add_run("Analysierte Datei:\t{}\nAnzahl Datensätze:\t{}".format(input_filename, linecount))
     run.font.name = text_fontname
     run.font.size = text_fontsize
 
-    for t in tables:
-        table = document.add_table(rows=1, cols=2, style="TableGrid")
-        # format header
-        hdr_cells = table.rows[0].cells
-        # cell merging
-        hdr_cells[0].merge(hdr_cells[1])
-        hdr_cells[0].text = t
-        # background color
-        cellprop = hdr_cells[0]._tc.get_or_add_tcPr()
-        cellshade = OxmlElement("w:shd")
-        cellshade.set(qn("w:fill"), "#CCCCCC")
-        cellprop.append(cellshade)
-        # font
-        run = hdr_cells[0].paragraphs[0].runs[0]
+    # write results of devices
+    counter = 0
+    for d in devices:
+        counter += 1
+        document.add_heading(d, 2)
+        p = document.add_paragraph()
+        run = p.add_run("{} Dateien (Legal: {}, Illegal: {})  >>  {:.2f}% illegal".format(devices[d].getCounts()[0], devices[d].getCounts()[1], devices[d].getCounts()[2], (devices[d].getCounts()[2]/devices[d].getCounts()[0])*100))
         run.font.name = text_fontname
-        run.font.size = table_fontsize
-        run.font.bold = True
+        run.font.size = text_fontsize
+        run.italic = True
 
-        # fill data
-        for name, val in records:
+        for c in sorted(category_sort.keys()):
+            if category_sort[c] not in devices[d].categories:
+                continue
+
+            cat = devices[d].getCategory(category_sort[c])
+            # write table...
+            table = document.add_table(rows=1, cols=2, style="Table Grid")
+            # format header
+            hdr_cells = table.rows[0].cells
+            # cell merging
+            hdr_cells[0].merge(hdr_cells[1])
+            hdr_cells[0].text = cat.name
+            # background color
+            cellprop = hdr_cells[0]._tc.get_or_add_tcPr()
+            cellshade = OxmlElement("w:shd")
+            cellshade.set(qn("w:fill"), "#CCCCCC")
+            cellprop.append(cellshade)
+            # row alignment
+            table.rows[0].height = table_rowheight
+            hdr_cells[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            # font
+            run = hdr_cells[0].paragraphs[0].runs[0]
+            run.font.name = text_fontname
+            run.font.size = table_fontsize
+            run.font.bold = True
+
+            # fill data...
+            # count & mediatype
             row_cells = table.add_row().cells
-            row_cells[0].text = name
-            row_cells[1].text = val
-        # format table
-        for row in table.rows[1:]:
-            i=-1
-            for cell in row.cells:
-                i+=1
-                # cell height
-                # p = cell.paragraphs[0]
-                # p.space_before = Pt(6)
-                # p.space_after = Pt(6)
-                # p.left_indent = Pt(0)
-                # font
-                cell.height = Pt(50)
-                run = cell.paragraphs[0].runs[0]
-                run.font.name = text_fontname
-                run.font.size = table_fontsize
-                if i == 0:
-                    # name-column bold
-                    run.font.bold = True
-        document.add_paragraph()
-    document.save(result_filename)
+            row_cells[0].text = "Menge/Dateityp:"
+            row_cells[1].text = cat.getCountsString()
+            if category_sort[c] != "Legale Pornographie":
+                # daterange
+                row_cells = table.add_row().cells
+                row_cells[0].text = "Erstellung auf Datenträger:"
+                row_cells[1].text = "{}".format(cat.getDateRange())
+                # timeline
+                row_cells = table.add_row().cells
+                row_cells[0].text = "Verteilung im Zeitraum:"
+                row_cells[1].text = "{}".format(cat.getGroupedDates())
+                # proportion storage <-> browser cache
+                row_cells = table.add_row().cells
+                row_cells[0].text = "Anteil Browsercache:"
+                perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
+                row_cells[1].text = "{:.0f}%".format(perc)
+                # paths
+                row_cells = table.add_row().cells
+                row_cells[0].text = "Speicherort(e):"
+                # show top-paths
+                rows = ""
+                i = 0
+                for k in sorted(cat.paths, key=cat.paths.get, reverse=True):
+                    i += 1
+                    if i > config["result"]["number_of_showed_paths"]:
+                        break;
+                    rows += "- {}\n".format(shortenPath(k))
+                # # if available, write other caches
+                # if len(cat.cachepaths)>0:
+                #     file_result.write("    > Caches <\n")
+                #     for k in cat.cachepaths:
+                #         file_result.write("- {}\n".format(k))
+                row_cells[1].text = rows
+            
+            # format table
+            for row in table.rows[1:]:
+                i=-1
+                row.height = table_rowheight
+                for cell in row.cells:
+                    i+=1
+                    # cell alignment
+                    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                    # font
+                    run = cell.paragraphs[0].runs[0]
+                    run.font.name = text_fontname
+                    run.font.size = table_fontsize
+                    if i == 0:
+                        # name-column bold
+                        run.font.bold = True
+            document.add_paragraph().paragraph_format.space_after = Pt(0)
+
+        progress(counter, len(devices))
+        document.save(result_filename)
     
 def writePathDetails():
     file_result = open(config["result"]["pathdetails_name"],"w", encoding="utf-8")
@@ -403,19 +468,7 @@ def writePathDetails():
             file_result.write("\n{}\n".format(getTitleString(cat.name, "\u0387")))
             # count & mediatype
             file_result.write("Menge/Dateityp:\t")
-            if cat.getCounts()[1] > 0:
-                if cat.getCounts()[1] > 1:
-                    file_result.write("{} Bilder".format(cat.getCounts()[1]))
-                else:
-                    file_result.write("{} Bild".format(cat.getCounts()[1]))
-                if cat.getCounts()[2] > 0:
-                    file_result.write(", ")
-            if cat.getCounts()[2] > 0:
-                if cat.getCounts()[2] > 1:
-                    file_result.write("{} Videos".format(cat.getCounts()[2]))
-                else:
-                    file_result.write("{} Video".format(cat.getCounts()[2]))
-            file_result.write("\n")
+            file_result.write("{}\n".format(cat.getCountsString()))
 
             # daterange
             file_result.write("Erstellung auf Datenträger:\t{}".format(cat.getDateRange()))
