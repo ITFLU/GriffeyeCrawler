@@ -1,13 +1,17 @@
 {
 	"input": {
-		"filename": "report_all.csv"
+		"filename": "report_all.csv",
+		"directory": "_files"
+
 	},
 
 	"result": {
 		"filename": "result.docx",
+		"directory": "_files",
 		"number_of_showed_paths": 5,
 		"generate_pathdetails": true,
-		"pathdetails_name": "pathdetails.txt"
+		"pathdetails_name": "pathdetails.txt",
+		"pathdetails_directory": "_files"
 	},
 	
 	"needed_columns": [

@@ -458,7 +458,9 @@ def writePathDetails():
     """
     creates the outputfile (txt) with detailed information
     """
-    file_result = open(config["result"]["pathdetails_name"],"w", encoding="utf-8")
+    path = config["result"]["pathdetails_directory"]
+    name = config["result"]["pathdetails_name"]
+    file_result = open(path+os.path.sep+name,"w", encoding="utf-8")
     # write results of file-analyze
     file_result.write("GRIFFEYE-ANALYZER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*47+"\n")
@@ -526,7 +528,9 @@ try:
         data = c.read()
     config = json.loads(data)
     input_filename = config["input"]["filename"]
+    input_directory = config["input"]["directory"]
     result_filename = config["result"]["filename"]
+    result_directory = config["result"]["directory"]
     category_legality = {}
     category_sort = {}
     for cat in config["categories"]:
@@ -548,6 +552,10 @@ try:
     if ".txt" in result_filename:
         result_format = "txt"
     print()
+
+    # combine filenames and directory
+    input_filename = input_directory+os.path.sep+input_filename
+    result_filename = result_directory+os.path.sep+result_filename
 
     # get linecount for progressbar
     linecount = getLinecount(input_filename)
