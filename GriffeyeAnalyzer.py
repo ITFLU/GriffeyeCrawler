@@ -557,7 +557,8 @@ try:
     print()
 
     # combine filenames and directory
-    input_filename = input_directory+os.path.sep+input_filename
+    if os.path.sep not in input_filename:
+        input_filename = input_directory+os.path.sep+input_filename
     result_filename = result_directory+os.path.sep+result_filename
 
     # get linecount for progressbar
