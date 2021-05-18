@@ -1,6 +1,7 @@
 {
 	"input": {
 		"filename": "report_all.csv",
+		"encoding": "utf16",
 		"directory": "_files"
 
 	},
@@ -8,9 +9,11 @@
 	"result": {
 		"filename": "result.docx",
 		"directory": "_files",
+		"encoding": "utf8",
 		"number_of_showed_paths": 5,
 		"generate_pathdetails": true,
 		"pathdetails_name": "pathdetails.txt",
+		"pathdetails_encoding": "utf8",
 		"pathdetails_directory": "_files"
 	},
 	
@@ -67,6 +70,7 @@
 		{ "name": "Instagram App", "is_browser": false, "path": "com.burbn.instagram.IGImageCache" },
 		{ "name": "Instagram App", "is_browser": false, "path": "com.burbn.instagram.IGVideoCache" },
 		{ "name": "Vorschau Windows Explorer", "is_browser": false, "path": "Explorer\\thumbcache" },
+		{ "name": "Vorschau Windows Explorer", "is_browser": false, "path": "\\thumbcache_" },
 		{ "name": "Vorschau Windows Explorer", "is_browser": false, "path": "\\Thumbs.db" }
 	]
 }

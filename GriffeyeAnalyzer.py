@@ -214,7 +214,7 @@ def getLinecount(filename):
     count total lines for progressbars
     """
     counter = -1
-    file_input = open(filename, "r", encoding="utf16")
+    file_input = open(filename, "r", encoding=input_encoding)
     for line in file_input:
         counter += 1
         if counter == 0:
@@ -259,7 +259,7 @@ def analyzeFile(filename):
     - detect min & max date for daterange (per device)
     """
     counter = -1
-    file_input = open(filename, "r", encoding="utf16")
+    file_input = open(filename, "r", encoding=input_encoding)
     for line in file_input:
         counter += 1
         if counter == 0:
@@ -286,7 +286,7 @@ def analyzeFile(filename):
     return counter
 
 def writeOutputfileTxt():
-    file_result = open(result_filename,"w", encoding="utf-8")
+    file_result = open(result_filename,"w", encoding=result_encoding)
     # write results of file-analysis
     file_result.write("GRIFFEYE-ANALYZER - Ergebnis vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*43+"\n")
@@ -460,7 +460,8 @@ def writePathDetails():
     """
     path = config["result"]["pathdetails_directory"]
     name = config["result"]["pathdetails_name"]
-    file_result = open(path+os.path.sep+name,"w", encoding="utf-8")
+    enc = config["result"]["pathdetails_encoding"]
+    file_result = open(path+os.path.sep+name,"w", encoding=enc)
     # write results of file-analyze
     file_result.write("GRIFFEYE-ANALYZER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*47+"\n")
@@ -528,8 +529,10 @@ try:
         data = c.read()
     config = json.loads(data)
     input_filename = config["input"]["filename"]
+    input_encoding = config["input"]["encoding"]
     input_directory = config["input"]["directory"]
     result_filename = config["result"]["filename"]
+    result_encoding = config["result"]["encoding"]
     result_directory = config["result"]["directory"]
     category_legality = {}
     category_sort = {}
@@ -567,7 +570,7 @@ try:
 
     # process data
     print("Verarbeite Datensätze...")
-    file_input = open(input_filename, "r", encoding="utf16")
+    file_input = open(input_filename, "r", encoding=input_encoding)
     result = ""
     counter = 0
     for line in file_input:
