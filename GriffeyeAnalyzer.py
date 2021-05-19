@@ -299,8 +299,6 @@ def writeOutputfileTxt():
     for d in devices:
         counter += 1
         file_result.write("\n{}\n".format(getTitleString(d, "=")))
-        file_result.write("{} Dateien (Legal: {}, Illegal: {})".format(devices[d].getCounts()[0], devices[d].getCounts()[1], devices[d].getCounts()[2]))
-        file_result.write("  >>  {:.2f}% illegal\n".format((devices[d].getCounts()[2]/devices[d].getCounts()[0])*100))
         for c in sorted(category_sort.keys()):
             if category_sort[c] not in devices[d].categories:
                 continue
@@ -363,12 +361,6 @@ def writeOutputfileDocx():
     for d in devices:
         counter += 1
         document.add_heading(d, 2)
-        p = document.add_paragraph()
-        run = p.add_run("{} Dateien (Legal: {}, Illegal: {})  >>  {:.2f}% illegal".format(devices[d].getCounts()[0], devices[d].getCounts()[1], devices[d].getCounts()[2], (devices[d].getCounts()[2]/devices[d].getCounts()[0])*100))
-        run.font.name = text_fontname
-        run.font.size = text_fontsize
-        run.italic = True
-
         for c in sorted(category_sort.keys()):
             if category_sort[c] not in devices[d].categories:
                 continue
@@ -556,7 +548,7 @@ try:
         result_format = "txt"
     print()
 
-    # combine filenames and directory
+    # combine filenames and directory if needed
     if os.path.sep not in input_filename:
         input_filename = input_directory+os.path.sep+input_filename
     result_filename = result_directory+os.path.sep+result_filename
