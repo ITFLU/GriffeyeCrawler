@@ -195,6 +195,13 @@ class ColumnNotFoundException(Exception):
         self.message = "Spalte '{}' wurde nicht gefunden".format(columnname)
 
 
+class ResultFormatUnknownException(Exception):
+    """
+    Error bei nicht definiertem Ausgabeformat
+    """
+    def __init__(self, format):
+        self.message = "Ausgabeformat unbekannt ('{}')".format(format)
+
 
 def progress(count, total, status=''):
     """
@@ -595,7 +602,8 @@ try:
     elif result_format == "docx":
         writeOutputfileDocx()
     else:
-        print("bummmm...")
+        # actually not possible...
+        raise ResultFormatUnknownException(result_format)
     if config["result"]["generate_pathdetails"]:
         writePathDetails()
 
@@ -606,17 +614,18 @@ try:
 except ColumnNotFoundException as exp:
     print("ERROR: Verarbeitung abgebrochen!")
     print(">", exp.message)
+except ResultFormatUnknownException as exp:
+    print("ERROR: Verarbeitung abgebrochen!")
+    print(">", exp.message)
 except FileNotFoundError as exp:
     print("ERROR: Verarbeitung abgebrochen!")
     print("> Datei '{}' nicht gefunden".format(exp.filename))
 except KeyError as exp:
     print("ERROR: Verarbeitung abgebrochen!")
-    print("> Konfiguration {} nicht gefunden".format(exp))
+    print("> Konfiguration '{}' nicht gefunden".format(exp))
 except Exception as exp:
     print("ERROR: Verarbeitung abgebrochen!")
     traceback.print_exc()
-    # print(">", type(exp))
-    # print(exp)
 
 print()
 input()
