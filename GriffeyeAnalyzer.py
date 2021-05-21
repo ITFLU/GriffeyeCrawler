@@ -54,6 +54,9 @@ class Device:
     def getSourceId(self):
         return self.sourceid
 
+    def getCategories(self):
+        return self.categories
+
     def getCategory(self, category):
         if category not in self.categories.keys():
             return None
@@ -99,6 +102,16 @@ class Category:
 
         # increase date
         self.increaseDate(date)
+
+    def addCounts(self, counts):
+        self.tot_count += counts[0]
+        self.pic_count += counts[1]
+        self.vid_count += counts[2]
+
+    def merge(self, merge_cat):
+        self.tot_count += merge_cat.getCounts()[0]
+        self.pic_count += merge_cat.getCounts()[1]
+        self.vid_count += merge_cat.getCounts()[2]
 
     def getCacheGroup(self, path):
         for k in known_cache_paths.keys():
@@ -293,9 +306,37 @@ def writeOutputfileTxt():
     file_result.write("Analysierte Datei:     {}\n".format(input_filename))
     file_result.write("Anzahl Datensätze:     {}\n".format(linecount))
     file_result.write("\n")
+    counter = 0
+    totallength = len(devices)+1 # + total-table
+
+    # write total results
+    file_result.write("\n{}\n".format(getTitleString("TOTAL", "=")))
+    for c in sorted(category_sort.keys()):
+        if category_sort[c] not in total.keys():
+            continue
+        cat = total[category_sort[c]]
+        file_result.write("\n{}\n".format(getTitleString(cat.name, "\u0387")))
+        # count & mediatype
+        file_result.write("Menge/Dateityp:\t")
+        file_result.write("{}\n".format(cat.getCountsString()))
+        if category_sort[c] != "Legale Pornographie":
+            # daterange
+            file_result.write("Erstellung auf Datenträger:\t{}".format(cat.getDateRange()))
+            file_result.write("\n")
+            # timeline
+            file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
+            file_result.write("\n")
+            # proportion storage <-> browser cache
+            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
+            file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
+            file_result.write("\n")
+    file_result.write("\n")
+
+    counter += 1
+    # update progressbar
+    progress(counter, totallength)
 
     # write results of devices
-    counter = 0
     for d in devices:
         counter += 1
         file_result.write("\n{}\n".format(getTitleString(d, "=")))
@@ -336,9 +377,8 @@ def writeOutputfileTxt():
                         file_result.write("- {}\n".format(k))
 
         file_result.write("\n")
-
         # update progressbar
-        progress(counter, len(devices))
+        progress(counter, totallength)
 
     file_result.close()
 
@@ -584,8 +624,25 @@ try:
         device.addFile(data_category, data_path, data_type, data_date)
         # update progressbar
         progress(counter, linecount)
-
     file_input.close()
+
+    # generate total from devices
+    total = {}
+    for d in devices:
+        categories = devices[d].getCategories()
+        for dev_cat in categories.values():
+            # get/generate total category
+            total_cat = None
+            if dev_cat.name not in total.keys():
+                total_cat = Category(dev_cat.name, dev_cat.min_date)
+                total[dev_cat.name] = total_cat
+            else:
+                total_cat = total[dev_cat.name];
+            # merge daterange
+            total_cat.addDate(dev_cat.min_date)
+            total_cat.addDate(dev_cat.max_date)
+            # merge other category-data
+            total_cat.merge(dev_cat)
     print()
 
     # write output-files
