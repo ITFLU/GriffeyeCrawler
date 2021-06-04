@@ -69,6 +69,7 @@
 		{ "name": "Skype Messenger", "is_browser": false, "path": "Skype for Desktop\\Cache" },
 		{ "name": "Instagram App", "is_browser": false, "path": "com.burbn.instagram.IGImageCache" },
 		{ "name": "Instagram App", "is_browser": false, "path": "com.burbn.instagram.IGVideoCache" },
+		{ "name": "Shaeraza", "is_browser": false, "path": "AppData\\Local\\Shareaza" },
 		{ "name": "Vorschau Windows Explorer", "is_browser": false, "path": "Explorer\\thumbcache" },
 		{ "name": "Vorschau Windows Explorer", "is_browser": false, "path": "\\thumbcache_" },
 		{ "name": "Vorschau Windows Explorer", "is_browser": false, "path": "\\Thumbs.db" }
