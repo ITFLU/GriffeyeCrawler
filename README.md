@@ -7,6 +7,10 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 - Ermittelt die prozentuelle Verteilung der Dateierstellung im betroffenen Zeitraum
 - Generiert eine Ergebnisdatei im TXT oder DOCX-Format
 
+## Mit EXE
+Es ist **keine** Installation notwendig...
+Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung* beschrieben, mit dem Unterschied, dass *GriffeyeAnalyzer.exe* ausgeführt werden muss.
+
 ## Ohne EXE
 ### Installation
 - Python 3.x herunterladen (www.python.org) und installieren.
@@ -24,7 +28,3 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 **Bestehende Dateien werden ohne Warnung überschrieben!**
 
 Bei Bedarf können diverse Einstellungen in der Datei *config.json* vorgenommen werden. Diese Datei muss sich im selben Verzeichnis wie *GriffeyeAnalyzer.py* befinden.
-
-## Mit EXE
-Es ist **keine** Installation notwendig...
-Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung* beschrieben, mit dem Unterschied, dass *GriffeyeAnalyzer.exe* ausgeführt werden muss.
