@@ -82,6 +82,7 @@ class Category:
         self.tot_count = 0
         self.paths = {}
         self.cachepaths = {}
+        self.cachegroups = {}
 
     def addDate(self, date):
         if date < self.min_date:
@@ -103,37 +104,60 @@ class Category:
         # increase date
         self.increaseDate(date)
 
-    def addCounts(self, counts):
-        self.tot_count += counts[0]
-        self.pic_count += counts[1]
-        self.vid_count += counts[2]
-
     def merge(self, merge_cat):
+        # merge daterange
+        self.addDate(merge_cat.min_date)
+        self.addDate(merge_cat.max_date)
+        # merge counts
         self.tot_count += merge_cat.getCounts()[0]
         self.pic_count += merge_cat.getCounts()[1]
         self.vid_count += merge_cat.getCounts()[2]
+        # merge dategroups
+        for item in merge_cat.date_groups.items():
+            key = item[0]
+            value = item[1]
+            if key not in self.date_groups.keys():
+                self.date_groups[key] = value  # create
+            else:
+                self.date_groups[key] += value # increase
+        # merge paths
+        for path in merge_cat.paths.keys():
+            if path not in self.paths.keys():
+                self.paths[path] = 1    # create
+            else:
+                self.paths[path] += 1   # increase
+        # merge cachepaths
+        for path in merge_cat.cachepaths.keys():
+            cache_group = self.getCacheGroup(path)
+            if cache_group is not None:
+                if cache_group not in self.cachegroups.keys():
+                    self.cachegroups[cache_group] = merge_cat.cachepaths[path]    # create
+                else:
+                    self.cachegroups[cache_group] += merge_cat.cachepaths[path]     # increase
 
     def getCacheGroup(self, path):
         for k in known_cache_paths.keys():
             if k in path:
                 return known_cache_paths[k]
         return None
-
+    
     def increasePath(self, path):
         if path in self.cachepaths.keys():
             # path is in cachepath >> increase count
             self.cachepaths[path] += 1
+            self.cachegroups[self.getCacheGroup(path)] += 1
         else:
             # path NOT in cachepath >> check for cache
             cache_group = self.getCacheGroup(path)
             if cache_group is not None:
-                # path is cachepath
-                if cache_group not in self.cachepaths.keys():
-                    self.cachepaths[cache_group] = 1    # create
+                # path is cache
+                self.cachepaths[path] = 1 # create
+                if cache_group not in self.cachegroups.keys():
+                    self.cachegroups[cache_group] = 1    # create
                 else:
-                    self.cachepaths[cache_group] += 1   # increase
+                    self.cachegroups[cache_group] += 1   # increase
             else:
-                # path is NOT cachepath
+                # path is NOT cache
                 if path not in self.paths.keys():
                     self.paths[path] = 1    # create
                 else:
@@ -194,9 +218,9 @@ class Category:
 
     def getBrowserCacheSum(self):
         sum = 0
-        for c in self.cachepaths:
+        for c in self.cachegroups.keys():
             if c in browser_names:
-                sum += self.cachepaths[c]
+                sum += self.cachegroups[c]
         return sum
 
 
@@ -310,7 +334,7 @@ def writeOutputfileTxt():
     totallength = len(devices)+1 # + total-table
 
     # write total results
-    file_result.write("\n{}\n".format(getTitleString("TOTAL", "=")))
+    file_result.write("\n{}\n".format(getTitleString("Total über alle Geräte", "=")))
     for c in sorted(category_sort.keys()):
         if category_sort[c] not in total.keys():
             continue
@@ -319,6 +343,9 @@ def writeOutputfileTxt():
         # count & mediatype
         file_result.write("Menge/Dateityp:\t")
         file_result.write("{}\n".format(cat.getCountsString()))
+        # devicecount
+        file_result.write("Anzahl Geräte:\t{}".format(cat_devcount[category_sort[c]]))
+        file_result.write("\n")
         if category_sort[c] != "Legale Pornographie":
             # daterange
             file_result.write("Erstellung auf Datenträger:\t{}".format(cat.getDateRange()))
@@ -370,11 +397,6 @@ def writeOutputfileTxt():
                     if i > config["result"]["number_of_showed_paths"]:
                         break;
                     file_result.write("- {}\n".format(shortenPath(k)))
-                # if available, write other caches
-                if len(cat.cachepaths)>0:
-                    file_result.write("    > Caches <\n")
-                    for k in cat.cachepaths:
-                        file_result.write("- {}\n".format(k))
 
         file_result.write("\n")
         # update progressbar
@@ -395,9 +417,83 @@ def writeOutputfileDocx():
     run = p.add_run("Analysierte Datei:\t{}\nAnzahl Datensätze:\t{}".format(input_filename, linecount))
     run.font.name = text_fontname
     run.font.size = text_fontsize
+    counter = 0
+    totallength = len(devices)+1 # + total-table
+
+    # write total results
+    document.add_heading("Total über alle Geräte", 2)
+    for c in sorted(category_sort.keys()):
+        if category_sort[c] not in total.keys():
+            continue
+        cat = total[category_sort[c]]
+        # write table...
+        table = document.add_table(rows=1, cols=2, style="Table Grid")
+        # format header
+        hdr_cells = table.rows[0].cells
+        # cell merging
+        hdr_cells[0].merge(hdr_cells[1])
+        hdr_cells[0].text = cat.name
+        # background color
+        cellprop = hdr_cells[0]._tc.get_or_add_tcPr()
+        cellshade = OxmlElement("w:shd")
+        cellshade.set(qn("w:fill"), "#CCCCCC")
+        cellprop.append(cellshade)
+        # row alignment
+        table.rows[0].height = table_rowheight
+        hdr_cells[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        # font
+        run = hdr_cells[0].paragraphs[0].runs[0]
+        run.font.name = text_fontname
+        run.font.size = table_fontsize
+        run.font.bold = True
+
+        # fill data...
+        # count & mediatype
+        row_cells = table.add_row().cells
+        row_cells[0].text = "Menge/Dateityp:"
+        row_cells[1].text = cat.getCountsString()
+        # devicecount
+        row_cells = table.add_row().cells
+        row_cells[0].text = "Anzahl Geräte::"
+        row_cells[1].text = "{}".format(cat_devcount[category_sort[c]])
+        if category_sort[c] != "Legale Pornographie":
+            # daterange
+            row_cells = table.add_row().cells
+            row_cells[0].text = "Erstellung auf Datenträger:"
+            row_cells[1].text = "{}".format(cat.getDateRange())
+            # timeline
+            row_cells = table.add_row().cells
+            row_cells[0].text = "Verteilung im Zeitraum:"
+            row_cells[1].text = "{}".format(cat.getGroupedDates())
+            # proportion storage <-> browser cache
+            row_cells = table.add_row().cells
+            row_cells[0].text = "Anteil Browsercache:"
+            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
+            row_cells[1].text = "{:.0f}%".format(perc)
+        
+        # format table
+        for row in table.rows[1:]:
+            i=-1
+            row.height = table_rowheight
+            for cell in row.cells:
+                i+=1
+                # cell alignment
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                # font
+                run = cell.paragraphs[0].runs[0]
+                run.font.name = text_fontname
+                run.font.size = table_fontsize
+                if i == 0:
+                    # name-column bold
+                    run.font.bold = True
+        document.add_paragraph().paragraph_format.space_after = Pt(0)
+
+    counter += 1
+    # update progressbar
+    progress(counter, totallength)
+
 
     # write results of devices
-    counter = 0
     for d in devices:
         counter += 1
         document.add_heading(d, 2)
@@ -459,11 +555,6 @@ def writeOutputfileDocx():
                     if i > 1:
                         rows += "\n"
                     rows += "- {}".format(shortenPath(k))
-                # # if available, write other caches
-                # if len(cat.cachepaths)>0:
-                #     file_result.write("    > Caches <\n")
-                #     for k in cat.cachepaths:
-                #         file_result.write("- {}\n".format(k))
                 row_cells[1].text = rows
             
             # format table
@@ -483,7 +574,7 @@ def writeOutputfileDocx():
                         run.font.bold = True
             document.add_paragraph().paragraph_format.space_after = Pt(0)
 
-        progress(counter, len(devices))
+        progress(counter, totallength)
         document.save(result_filename)
     
 def writePathDetails():
@@ -538,7 +629,10 @@ def writePathDetails():
             # if available, write other caches
             if len(cat.cachepaths)>0:
                 file_result.write("    > Caches <\n")
-                for k in cat.cachepaths:
+                for k in sorted(cat.cachegroups, key=cat.cachegroups.get, reverse=True):
+                    file_result.write("- {} >>> {}\n".format(k, str(cat.cachegroups[k])))
+                file_result.write("    > Cache-Details <\n")
+                for k in sorted(cat.cachepaths, key=cat.cachepaths.get, reverse=True):
                     file_result.write("- {} >>> {}\n".format(k, str(cat.cachepaths[k])))
 
         file_result.write("\n")
@@ -628,9 +722,15 @@ try:
 
     # generate total from devices
     total = {}
+    cat_devcount = {}
     for d in devices:
         categories = devices[d].getCategories()
         for dev_cat in categories.values():
+            # increase/generate devicecount for category
+            if dev_cat.name not in cat_devcount.keys():
+                cat_devcount[dev_cat.name] = 1
+            else:
+                cat_devcount[dev_cat.name] += 1
             # get/generate total category
             total_cat = None
             if dev_cat.name not in total.keys():
@@ -638,10 +738,7 @@ try:
                 total[dev_cat.name] = total_cat
             else:
                 total_cat = total[dev_cat.name];
-            # merge daterange
-            total_cat.addDate(dev_cat.min_date)
-            total_cat.addDate(dev_cat.max_date)
-            # merge other category-data
+            # merge device-category to total-category
             total_cat.merge(dev_cat)
     print()
 
@@ -651,8 +748,6 @@ try:
         writeOutputfileTxt()
     elif result_format == "docx":
         writeOutputfileDocx()
-    else:
-        print("bummmm...")
     if config["result"]["generate_pathdetails"]:
         writePathDetails()
 
