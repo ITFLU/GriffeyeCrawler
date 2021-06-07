@@ -706,11 +706,11 @@ try:
     print("Verarbeite Datensätze...")
     file_input = open(input_filename, "r", encoding=input_encoding)
     result = ""
-    counter = 0
+    counter = -1
     for line in file_input:
         counter += 1
         # ignore csv-header
-        if counter == 1:
+        if counter == 0:
             continue
 
         # get data from file
