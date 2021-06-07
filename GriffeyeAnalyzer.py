@@ -13,7 +13,7 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 
 (c) 2021, Luzerner Polizei
 Author:  Michael Wicki
-Version: 09.04.2021
+Version: 0.1
 """
 
 import os
