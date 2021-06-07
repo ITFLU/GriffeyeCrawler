@@ -20,9 +20,8 @@ Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung*
 - Das Package *docx* mit ``pip install docx`` installieren
 
 ### Start/Ausführung
-- Zu verarbeitende CSV-Datei in das Verzeichnis *_files* kopieren (Standardeinstellung)
 - *GriffeyeAnalyzer.py* doppelklicken
-- Name der zu verarbeitenden CSV-Datei angeben. Der Standardwert (report_all.csv) kann einfach mit Enter bestätigt werden.
+- Name der zu verarbeitenden CSV-Datei angeben. Der Standardwert (report_all.csv) kann einfach mit Enter bestätigt werden. Die entsprechende Datei kann auch mittels Drag-and-Drop ins Terminal gezogen werden.
 - Name der Ergebnisdatei angeben. Der Standardwert (result.docx) kann einfach mit Enter bestätigt werden. Es sind die Formate .txt & .docx möglich.
 - Das Ergebnis wird im Verzeichnis *_files* erstellt (Standardeinstellung). Ausserdem wird bei jeder Verarbeitung die Datei *pathdetails.txt* erstellt, welche detailliertere Informationen zu den ausgewerteten Daten aufweist.
 **Bestehende Dateien werden ohne Warnung überschrieben!**
