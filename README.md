@@ -16,8 +16,8 @@ Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung*
 - Python 3.x herunterladen (www.python.org) und installieren.
   - Sichergehen, dass "pip" ebenfalls installiert wird (ist standardmässig aktiviert)
   - Ob die Installationen erfolgreich waren mittels ``python --version`` & ``pip --version`` kontrollieren
-  - evtl. muss *%APPDATA%\Local\Programs\Python\Python\<Version>* (Python) & *..\Scrips* (pip) in den Umgebungsvariablen erfasst werden
-- Das Package *docx* mit ``pip install docx`` installieren
+  - evtl. muss *%APPDATA%\Local\Programs\Python\Python\<Version>* (Python) & *..\Scripts* (pip) in den Umgebungsvariablen erfasst werden
+- Das Package *docx* mit ``pip install python-docx`` installieren
 
 ### Start/Ausführung
 - *GriffeyeAnalyzer.py* doppelklicken
