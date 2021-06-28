@@ -289,7 +289,7 @@ def checkColumns(header):
     """
     check for needed columns & fill columnindex-dictionary for column access with columnname
     """
-    cols = header.split(';')
+    cols = header[:-1].split(';')
     for c in config["needed_columns"]:
         if c["columnname"] in cols:
             column_index[c["key"]] = cols.index(c["columnname"])
@@ -680,7 +680,7 @@ try:
             browser_names.append(cac["name"])
 
     # ask for names & options
-    input_filename = input("Name des Input-CSV (Default: {}) > ".format(input_filename)) or input_filename
+    input_filename = input("Name des Input-CSV (Default: {} aus {}) > ".format(input_filename, input_directory)) or input_filename
     result_filename = input("Name der Ergebnisdatei (Default: {}) [.txt, .docx] > ".format(result_filename)) or result_filename
     result_format = "txt"
     if ".docx" in result_filename:
