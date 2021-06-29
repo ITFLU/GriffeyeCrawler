@@ -1,4 +1,4 @@
-# GriffeyeAnalyzer
+# GriffeyeCrawler
 Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 - Summiert die Bilder und Videos
 - Fasst die Dateipfade zusammen und unterteilt diese in Cache- & Nicht-Cache-Pfade auf
@@ -9,7 +9,7 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 
 ## Mit EXE
 Es ist **keine** Installation notwendig...
-Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung* beschrieben, mit dem Unterschied, dass *GriffeyeAnalyzer.exe* ausgeführt werden muss.
+Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung* beschrieben, mit dem Unterschied, dass *GriffeyeCrawler.exe* ausgeführt werden muss.
 
 ## Ohne EXE
 ### Installation
@@ -20,10 +20,10 @@ Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung*
 - Das Package *docx* mit ``pip install python-docx`` installieren
 
 ### Start/Ausführung
-- *GriffeyeAnalyzer.py* doppelklicken
+- *GriffeyeCrawler.py* doppelklicken
 - Name der zu verarbeitenden CSV-Datei angeben. Der Standardwert (report_all.csv) kann einfach mit Enter bestätigt werden. Die entsprechende Datei kann auch mittels Drag-and-Drop ins Terminal gezogen werden.
 - Name der Ergebnisdatei angeben. Der Standardwert (result.docx) kann einfach mit Enter bestätigt werden. Es sind die Formate .txt & .docx möglich.
 - Das Ergebnis wird im Verzeichnis *_files* erstellt (Standardeinstellung). Ausserdem wird bei jeder Verarbeitung die Datei *pathdetails.txt* erstellt, welche detailliertere Informationen zu den ausgewerteten Daten aufweist.
 **Bestehende Dateien werden ohne Warnung überschrieben!**
 
-Bei Bedarf können diverse Einstellungen in der Datei *config.json* vorgenommen werden. Diese Datei muss sich im selben Verzeichnis wie *GriffeyeAnalyzer.py* befinden.
+Bei Bedarf können diverse Einstellungen in der Datei *config.json* vorgenommen werden. Diese Datei muss sich im selben Verzeichnis wie *GriffeyeCrawler.py* befinden.
