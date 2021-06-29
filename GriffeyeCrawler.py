@@ -785,6 +785,18 @@ except FileNotFoundError as exp:
 except KeyError as exp:
     print("ERROR: Verarbeitung abgebrochen!")
     print("> Konfiguration '{}' nicht gefunden".format(exp))
+except UnicodeDecodeError as exp:
+    print("ERROR: Verarbeitung abgebrochen!")
+    if exp.args[0] == "utf-8":
+        print("Datei liegt nicht im UTF-8-Format vor. Config anpassen oder Datei umwandeln...")
+    else:
+        print("Datei liegt in einem unbekannten Format vor")
+except UnicodeError as exp:
+    print("ERROR: Verarbeitung abgebrochen!")
+    if "UTF-16" in exp.args[0]:
+        print("Datei liegt nicht im UTF-16-Format vor. Config anpassen oder Datei umwandeln...")
+    else:
+        print("Datei liegt in einem unbekannten Format vor")
 except Exception as exp:
     print("ERROR: Verarbeitung abgebrochen!")
     traceback.print_exc()
