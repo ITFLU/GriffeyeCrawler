@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 """
-GRIFFEYE-ANALYZER
------------------
+GRIFFEYE-CRAWLER
+----------------
 Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 - Summiert die Bilder und Videos
 - Fasst die Dateipfade zusammen und unterteilt diese in Cache- & Nicht-Cache-Pfade auf
@@ -13,7 +13,7 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 
 (c) 2021, Luzerner Polizei
 Author:  Michael Wicki
-Version: 0.1
+Version: 0.2
 """
 
 import os
@@ -339,7 +339,7 @@ def analyzeFile(filename):
 def writeOutputfileTxt():
     file_result = open(result_filename,"w", encoding=result_encoding)
     # write results of file-analysis
-    file_result.write("GRIFFEYE-ANALYZER - Ergebnis vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
+    file_result.write("GRIFFEYE-CRAWLER - Ergebnis vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*43+"\n")
     file_result.write("Analysierte Datei:     {}\n".format(input_filename))
     file_result.write("Anzahl Datensätze:     {}\n".format(linecount))
@@ -426,7 +426,7 @@ def writeOutputfileDocx():
 
     document = Document()
     # write results of file-analysis
-    document.add_heading("GRIFFEYE-ANALYZER - Ergebnis vom {}".format(datetime.now().strftime("%d.%m.%Y")), 1)
+    document.add_heading("GRIFFEYE-CRAWLER - Ergebnis vom {}".format(datetime.now().strftime("%d.%m.%Y")), 1)
     p = document.add_paragraph()
     run = p.add_run("Analysierte Datei:\t{}\nAnzahl Datensätze:\t{}".format(input_filename, linecount))
     run.font.name = text_fontname
@@ -600,7 +600,7 @@ def writePathDetails():
     enc = config["result"]["pathdetails_encoding"]
     file_result = open(path+os.path.sep+name,"w", encoding=enc)
     # write results of file-analyze
-    file_result.write("GRIFFEYE-ANALYZER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
+    file_result.write("GRIFFEYE-CRAWLER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*47+"\n")
     file_result.write("Analysierte Datei:     {}\n".format(input_filename))
     file_result.write("Anzahl Datensätze:     {}\n".format(linecount))
@@ -663,7 +663,7 @@ linecount = 0
 empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
 
 try:
-    print("===== GRIFFEYE-ANALYZER =====")
+    print("===== GRIFFEYE-CRAWLER =====")
 
     # read configurations
     with open('config.json') as c:
