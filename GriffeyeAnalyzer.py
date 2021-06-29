@@ -85,10 +85,11 @@ class Category:
         self.cachegroups = {}
 
     def addDate(self, date):
-        if date < self.min_date:
-            self.min_date = date
-        if date > self.max_date:
-            self.max_date = date
+        if date != empty_date:
+            if self.min_date == empty_date or date < self.min_date:
+                self.min_date = date
+            if self.max_date == empty_date or date > self.max_date:
+                self.max_date = date
 
     def addFile(self, path, mediatype, date):
         # increase counters
@@ -165,12 +166,16 @@ class Category:
 
     def increaseDate(self, date):
         year = int(date[6:10])
+        if year == 1:
+            year = 9999;
         if year not in self.date_groups.keys():
             self.date_groups[year] = 1  # create
         else:
             self.date_groups[year] += 1 # increase
 
     def getDateRange(self):
+        if self.min_date == empty_date or self.max_date == empty_date:
+            return "undefiniert"
         return self.min_date.strftime("%d.%m.%Y")+" - "+self.max_date.strftime("%d.%m.%Y")
 
     def getDateRangeDays(self):
@@ -213,6 +218,8 @@ class Category:
         for year in sorted(self.date_groups.keys()):
             # calculate percentage of total files
             perc = (self.date_groups[year]/self.tot_count)*100
+            if year == 9999:
+                year = "undef."
             result = result+"{}: {:.0f}%, ".format(year, perc)
         return result[:-2] # kill last ', '
 
@@ -653,6 +660,7 @@ def writePathDetails():
 column_index = {}
 devices = {}
 linecount = 0
+empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
 
 try:
     print("===== GRIFFEYE-ANALYZER =====")
