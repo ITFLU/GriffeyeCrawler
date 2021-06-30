@@ -238,6 +238,12 @@ class ColumnNotFoundException(Exception):
     def __init__(self, columnname):
         self.message = "Spalte '{}' wurde nicht gefunden".format(columnname)
 
+class LineNotValidException(Exception):
+    """
+    Error bei CSV-Line mit ; innerhalb eines Feldes ohne passende Anzahl "
+    """
+    def __init__(self, linenumber):
+        self.message = "Zeile '{}' ist ungültig".format(linenumber)
 
 class ResultFormatUnknownException(Exception):
     """
@@ -303,6 +309,19 @@ def checkColumns(header):
         else:
             raise ColumnNotFoundException(c["columnname"])
 
+def convertLine(line, linenumber):
+    # cut out field with semicolon in it
+    pos_start = line.find('"')+1
+    pos_end = line.find('"', pos_start)
+    if pos_start == 0 or pos_end == -1:
+        raise LineNotValidException(linenumber);
+    field = line[pos_start:pos_end]
+    # get range before and after the field
+    first_part = line[:pos_start-2]  # -1 ", -1 ;
+    second_part = line[pos_end+2:-1]   # +1 ", +1 ;
+    # merge lists
+    return first_part.split(";")+[field]+second_part.split(";")
+
 def analyzeFile(filename):
     """
     - check for needed columns & fill columnindex-dictionary
@@ -316,20 +335,28 @@ def analyzeFile(filename):
         if counter == 0:
             # csv-header...
             checkColumns(line)
+            global column_count
+            column_count = line.count(";")
             continue
 
         # csv-entry...
         # get device & date from csv
-        data = line.split(";")
-        data_category = data[column_index['col_category']]
-        data_date = data[column_index['col_date']]
-        current_date = datetime.strptime(data_date[0:10], "%d.%m.%Y")
-        data_device = data[column_index['col_device']]
-        # check for device or create it when needed
-        if data_device not in devices.keys():
-            devices[data_device] = Device(data_device, data_category, current_date)
-        else:
-            devices[data_device].addDate(data_category, current_date)
+        try:
+            if line.count(";") != column_count:
+                data = convertLine(line, counter+1)
+            else:
+                data = line.split(";")
+            data_category = data[column_index['col_category']]
+            data_date = data[column_index['col_date']]
+            current_date = datetime.strptime(data_date[0:10], "%d.%m.%Y")
+            data_device = data[column_index['col_device']]
+            # check for device or create it when needed
+            if data_device not in devices.keys():
+                devices[data_device] = Device(data_device, data_category, current_date)
+            else:
+                devices[data_device].addDate(data_category, current_date)
+        except LineNotValidException as exp:
+            invalid_lines.append(exp.args[0])
         # update progressbar
         progress(counter, linecount)
 
@@ -659,8 +686,10 @@ def writePathDetails():
 # init
 column_index = {}
 devices = {}
+column_count = 0
 linecount = 0
 empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
+invalid_lines = []
 
 try:
     print("===== GRIFFEYE-CRAWLER =====")
@@ -708,6 +737,13 @@ try:
     # analyze file
     print("Analysiere Datei '{}'...".format(input_filename))
     analyzeFile(input_filename)
+    if len(invalid_lines) > 0:
+        print()
+        print("  !!! Ungültige Zeilen in Input-CSV entdeckt und in Verarbeitung ignoriert")
+        print("  !!! Zeilen: ", end="")
+        for l in invalid_lines:
+            print(l, end="  ")
+        print()
     print()
 
     # process data
@@ -722,15 +758,21 @@ try:
             continue
 
         # get data from file
-        column = line.split(";")
-        data_category = column[column_index['col_category']]
-        data_path = column[column_index['col_path']]
-        data_type = column[column_index['col_type']]
-        data_date = column[column_index['col_date']]
-        data_device = column[column_index['col_device']]
-        # add data to device
-        device = devices[data_device]
-        device.addFile(data_category, data_path, data_type, data_date)
+        try:
+            if line.count(";") != column_count:
+                column = convertLine(line, counter+1)
+            else:
+                column = line.split(";")
+            data_category = column[column_index['col_category']]
+            data_path = column[column_index['col_path']]
+            data_type = column[column_index['col_type']]
+            data_date = column[column_index['col_date']]
+            data_device = column[column_index['col_device']]
+            # add data to device
+            device = devices[data_device]
+            device.addFile(data_category, data_path, data_type, data_date)
+        except LineNotValidException as exp:
+            pass
         # update progressbar
         progress(counter, linecount)
     file_input.close()
