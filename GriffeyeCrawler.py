@@ -385,7 +385,7 @@ def writeOutputfileTxt():
         file_result.write("Menge/Dateityp:\t")
         file_result.write("{}\n".format(cat.getCountsString()))
         # devicecount
-        file_result.write("Anzahl Geräte:\t{} von {}".format(cat_devcount[category_sort[c]], len(devices)))
+        file_result.write("Anzahl Datenträger:\t{}".format(cat_devcount[category_sort[c]]))
         file_result.write("\n")
         if category_sort[c] != "Legale Pornographie":
             # daterange
@@ -495,8 +495,8 @@ def writeOutputfileDocx():
         row_cells[1].text = cat.getCountsString()
         # devicecount
         row_cells = table.add_row().cells
-        row_cells[0].text = "Anzahl Geräte:"
-        row_cells[1].text = "{} von {}".format(cat_devcount[category_sort[c]], len(devices))
+        row_cells[0].text = "Anzahl Datenträger:"
+        row_cells[1].text = "{}".format(cat_devcount[category_sort[c]])
         if category_sort[c] != "Legale Pornographie":
             # daterange
             row_cells = table.add_row().cells
