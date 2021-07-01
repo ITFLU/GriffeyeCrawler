@@ -4,7 +4,8 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 - Fasst die Dateipfade zusammen und unterteilt diese in Cache- & Nicht-Cache-Pfade auf
 - Ermittelt die Pfade mit den meisten Inhalten
 - Ermittelt das prozentuelle Verhältnis im Browsercache und der übrigen Ablage
-- Ermittelt die prozentuelle Verteilung der Dateierstellung im betroffenen Zeitraum
+- Ermittelt die prozentuelle Verteilung der Dateierstellung im betroffenen Zeitraum pro Jahr
+- Ermittelt sämtliche erwähnten Punkte auch als Total über alle Geräte + die Anzahl der betroffenen Geräte
 - Generiert eine Ergebnisdatei im TXT oder DOCX-Format
 
 ## Mit EXE
