@@ -13,8 +13,9 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 
 (c) 2021, Luzerner Polizei
 Author:  Michael Wicki
-Version: 0.2
+Version: 0.2.1
 """
+version = "v0.2.1"
 
 import os
 import sys
@@ -692,7 +693,7 @@ empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
 invalid_lines = []
 
 try:
-    print("===== GRIFFEYE-CRAWLER =====")
+    print("===== GRIFFEYE-CRAWLER {} =====".format(version))
 
     # read configurations
     with open('config.json') as c:

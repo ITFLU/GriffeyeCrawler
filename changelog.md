@@ -1,5 +1,8 @@
 # GriffeyeCrawler - Changelog
 
+## Version 0.2.1
+- Total-Tabellen "komprimiert", um weniger Platz im Rapport einzunehmen
+
 ## Version 0.2
 - In GriffeyeCrawler umbenannt
 - Datum von gecarvten Files (01.01.0001) als 'undefiniert' anzeigen
