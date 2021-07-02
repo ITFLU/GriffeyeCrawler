@@ -28,6 +28,7 @@ from docx.shared import Pt
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
 
@@ -472,36 +473,35 @@ def writeOutputfileDocx():
         # format header
         hdr_cells = table.rows[0].cells
         # cell merging
-        hdr_cells[0].merge(hdr_cells[1])
         hdr_cells[0].text = cat.name
+        datentr = "Datenträger"
+        if cat_devcount[category_sort[c]] > 1:
+            datentr = "Datenträgern"
+        hdr_cells[1].text = "{} auf {} {}".format(cat.getCountsString(), cat_devcount[category_sort[c]], datentr)
         # background color
-        cellprop = hdr_cells[0]._tc.get_or_add_tcPr()
         cellshade = OxmlElement("w:shd")
         cellshade.set(qn("w:fill"), "#CCCCCC")
+        cellprop = hdr_cells[0]._tc.get_or_add_tcPr()
+        cellprop.append(cellshade)
+        cellshade = OxmlElement("w:shd")
+        cellshade.set(qn("w:fill"), "#CCCCCC")
+        cellprop = hdr_cells[1]._tc.get_or_add_tcPr()
         cellprop.append(cellshade)
         # row alignment
         table.rows[0].height = table_rowheight
         hdr_cells[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        hdr_cells[1].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         # font
         run = hdr_cells[0].paragraphs[0].runs[0]
         run.font.name = text_fontname
         run.font.size = table_fontsize
         run.font.bold = True
+        run = hdr_cells[1].paragraphs[0].runs[0]
+        run.font.name = text_fontname
+        run.font.size = table_fontsize
 
         # fill data...
-        # count & mediatype
-        row_cells = table.add_row().cells
-        row_cells[0].text = "Menge/Dateityp:"
-        row_cells[1].text = cat.getCountsString()
-        # devicecount
-        row_cells = table.add_row().cells
-        row_cells[0].text = "Anzahl Datenträger:"
-        row_cells[1].text = "{}".format(cat_devcount[category_sort[c]])
         if category_sort[c] != "Legale Pornographie":
-            # daterange
-            row_cells = table.add_row().cells
-            row_cells[0].text = "Erstellung auf Datenträger:"
-            row_cells[1].text = "{}".format(cat.getDateRange())
             # timeline
             row_cells = table.add_row().cells
             row_cells[0].text = "Verteilung im Zeitraum:"
