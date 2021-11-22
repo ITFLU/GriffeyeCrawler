@@ -1,5 +1,9 @@
 # GriffeyeCrawler - Changelog
 
+## Version 0.3
+- Tabellen um den Wert "unique" (binary) erweitert (#9)
+- Leere "Created Time" wo möglich durch "Last Write Time" ersetzen. Bis jetzt nur bei Mobiles aufgefallen... (#10)
+ 
 ## Version 0.2.1
 - Total-Tabellen "komprimiert", um weniger Platz im Rapport einzunehmen
 
