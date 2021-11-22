@@ -4,7 +4,7 @@
 GRIFFEYE-CRAWLER
 ----------------
 Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
-- Summiert die Bilder und Videos
+- Summiert die Bilder und Videos (Total & binary unique)
 - Fasst die Dateipfade zusammen und unterteilt diese in Cache- & Nicht-Cache-Pfade auf
 - Ermittelt die Pfade mit den meisten Inhalten
 - Ermittelt das prozentuelle Verhältnis im Browsercache und der übrigen Ablage
@@ -15,7 +15,7 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 Author:  Michael Wicki
 Version: 0.2.1
 """
-version = "v0.2.1"
+version = "v0.3"
 
 import os
 import sys
@@ -46,8 +46,10 @@ class Device:
         else:
             self.categories[category].addDate(date)
 
-    def addFile(self, category, path, mediatype, date):
-        self.categories[category].addFile(path, mediatype, date)
+    def addFile(self, category, path, mediatype, date, hash):
+        self.categories[category].addFile(path, mediatype, date, hash)
+        
+        # increase legal/illegal count
         if category_legality.get(category, True):
             self.legal_count += 1
         else:
@@ -85,6 +87,8 @@ class Category:
         self.paths = {}
         self.cachepaths = {}
         self.cachegroups = {}
+        self.pic_hashes = set()
+        self.vid_hashes = set()
 
     def addDate(self, date):
         if date != empty_date:
@@ -93,13 +97,15 @@ class Category:
             if self.max_date == empty_date or date > self.max_date:
                 self.max_date = date
 
-    def addFile(self, path, mediatype, date):
-        # increase counters
+    def addFile(self, path, mediatype, date, hash):
+        # increase counters & add hash to 'hashes' (>> deduplicates itself)
         self.tot_count += 1
         if mediatype == "Image":
             self.pic_count += 1
+            self.pic_hashes.add(hash)
         if mediatype == "Video":
             self.vid_count += 1
+            self.vid_hashes.add(hash)
 
         # increase path
         self.increasePath(path)
@@ -137,6 +143,9 @@ class Category:
                     self.cachegroups[cache_group] = merge_cat.cachepaths[path]    # create
                 else:
                     self.cachegroups[cache_group] += merge_cat.cachepaths[path]     # increase
+        # merge hashes
+        self.pic_hashes.update(merge_cat.getPicHashset())
+        self.vid_hashes.update(merge_cat.getVidHashset())
 
     def getCacheGroup(self, path):
         for k in known_cache_paths.keys():
@@ -183,6 +192,18 @@ class Category:
     def getDateRangeDays(self):
         return (self.max_date - self.min_date).days + 1
 
+    def getPicHashset(self):
+        return self.pic_hashes
+
+    def getVidHashset(self):
+        return self.vid_hashes
+
+    def getUniqueCounts(self):
+        """
+        returns a tuple with total count, picture count & video count of binary unique files (based on the hash)
+        """
+        return (len(self.pic_hashes.union(self.vid_hashes)), len(self.pic_hashes), len(self.vid_hashes))
+
     def getCounts(self):
         """
         returns a tuple with total count, picture count & video count of the category
@@ -201,6 +222,8 @@ class Category:
                 result += "Bilder"
             else:
                 result += "Bild"
+            # binary unique
+            result += " ({})".format(len(self.pic_hashes))
             if self.vid_count > 0:
                 result += ", "
         # videos
@@ -210,6 +233,8 @@ class Category:
                 result += "Videos"
             else:
                 result += "Video"
+            # binary unique
+            result += " ({})".format(len(self.vid_hashes))
         return result
 
     def getGroupedDates(self):
@@ -307,8 +332,13 @@ def checkColumns(header):
     cols = header[:-1].split(';')
     for c in config["needed_columns"]:
         if c["columnname"] in cols:
+            # column in csv found
             column_index[c["key"]] = cols.index(c["columnname"])
+        elif "alt" in c and c["alt"] in cols:
+            # column has 'alt'-entry in config and 'alt' is found in csv
+            column_index[c["key"]] = cols.index(c["alt"])
         else:
+            # column and 'alt' in csv not found
             raise ColumnNotFoundException(c["columnname"])
 
 def convertLine(line, linenumber):
@@ -769,9 +799,10 @@ try:
             data_type = column[column_index['col_type']]
             data_date = column[column_index['col_date']]
             data_device = column[column_index['col_device']]
+            data_hash = column[column_index['col_hash']]
             # add data to device
             device = devices[data_device]
-            device.addFile(data_category, data_path, data_type, data_date)
+            device.addFile(data_category, data_path, data_type, data_date, data_hash)
         except LineNotValidException as exp:
             pass
         # update progressbar
