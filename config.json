@@ -16,6 +16,11 @@
 		"pathdetails_encoding": "utf8",
 		"pathdetails_directory": "_files"
 	},
+
+	"other": {
+		"alternative_date_column": "Last Write Time",
+		"alternative_date_key": "col_alt_date"
+	},
 	
 	"needed_columns": [
 		{ "columnname": "Category", "key": "col_category" },

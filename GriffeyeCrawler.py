@@ -13,7 +13,7 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 
 (c) 2021, Luzerner Polizei
 Author:  Michael Wicki
-Version: 0.2.1
+Version: 0.3
 """
 version = "v0.3"
 
@@ -341,6 +341,13 @@ def checkColumns(header):
             # column and 'alt' in csv not found
             raise ColumnNotFoundException(c["columnname"])
 
+    # check for alternative date for the case of empty date (01.01.0001) in mobiles
+    alt_date = config["other"]["alternative_date_column"]
+    alt_key = config["other"]["alternative_date_key"]
+    column_index[alt_key] = -1
+    if alt_date in cols:
+        column_index[alt_key] = cols.index(alt_date)
+
 def convertLine(line, linenumber):
     # cut out field with semicolon in it
     pos_start = line.find('"')+1
@@ -380,6 +387,9 @@ def analyzeFile(filename):
                 data = line.split(";")
             data_category = data[column_index['col_category']]
             data_date = data[column_index['col_date']]
+            # if date is empty (01.01.0001) try the alternative date
+            if data_date == empty_date_string and column_index['col_alt_date'] > -1:
+                data_date = data[column_index['col_alt_date']]
             current_date = datetime.strptime(data_date[0:10], "%d.%m.%Y")
             data_device = data[column_index['col_device']]
             # check for device or create it when needed
@@ -720,6 +730,7 @@ devices = {}
 column_count = 0
 linecount = 0
 empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
+empty_date_string = "01.01.0001 00:00:00"
 invalid_lines = []
 
 try:
@@ -798,6 +809,9 @@ try:
             data_path = column[column_index['col_path']]
             data_type = column[column_index['col_type']]
             data_date = column[column_index['col_date']]
+            # if date is empty (01.01.0001) try the alternative date
+            if data_date == empty_date_string and column_index['col_alt_date'] > -1:
+                data_date = column[column_index['col_alt_date']]
             data_device = column[column_index['col_device']]
             data_hash = column[column_index['col_hash']]
             # add data to device
