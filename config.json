@@ -22,7 +22,8 @@
 		{ "columnname": "File Path", "key": "col_path" },
 		{ "columnname": "File Type", "key": "col_type" },
 		{ "columnname": "Created Date", "key": "col_date" },
-		{ "columnname": "Source ID", "key": "col_device" }
+		{ "columnname": "Source ID", "key": "col_device" },
+		{ "columnname": "MD5", "key": "col_hash", "alt": "SHA-1" }
 	],
 
 	"categories": [
