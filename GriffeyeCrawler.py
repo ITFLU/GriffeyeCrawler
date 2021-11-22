@@ -307,8 +307,13 @@ def checkColumns(header):
     cols = header[:-1].split(';')
     for c in config["needed_columns"]:
         if c["columnname"] in cols:
+            # column in csv found
             column_index[c["key"]] = cols.index(c["columnname"])
+        elif "alt" in c and c["alt"] in cols:
+            # column has 'alt'-entry in config and 'alt' is found in csv
+            column_index[c["key"]] = cols.index(c["alt"])
         else:
+            # column and 'alt' in csv not found
             raise ColumnNotFoundException(c["columnname"])
 
 def convertLine(line, linenumber):
