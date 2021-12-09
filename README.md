@@ -9,12 +9,22 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 - Ermittelt sämtliche erwähnten Punkte auch als Total über alle Geräte + die Anzahl der betroffenen Geräte
 - Generiert eine Ergebnisdatei im TXT oder DOCX-Format
 
+## Export aus Griffeye
+- Report...
+- CSV
+- *Exclude Binary & Visual Copies* deaktivieren
+- Gewünschte Kategorien markieren
+- Gewünschte Spalten markieren (*EXIF* - *Comment* deaktivieren)
+  - Für das Script benötigt: *Category*, *File Path*, *File Type*, *Created Date* (evtl. *Last Write Time*), *Source ID*, *MD5* (oder *SHA-1*)
+
 ## Verwendung
+
 ### Mit EXE
 Es ist **keine** Installation notwendig... Python muss **nicht** installiert sein.
 Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung* beschrieben, mit dem Unterschied, dass *GriffeyeCrawler.exe* ausgeführt werden muss.
 
-### Ohne EXE (Python-Skript)
+### Ohne EXE (Python-Script)
+
 #### Installation
 - Python 3.x herunterladen (www.python.org) und installieren.
   - Sichergehen, dass "pip" ebenfalls installiert wird (ist standardmässig aktiviert)
@@ -31,10 +41,11 @@ Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung*
 
 
 ## Allgemeine Hinweise
-* Ist die gleiche Datei mehrfach vorhanden, wird sie auch mehrfach gezählt und in den entsprechenden Tabellen angezeigt. Die anschliessend angegebene Zahl in Klammern entspricht jeweils der Anzahl gefundener Dateien ohne Duplikate (binary unique).
-* Die zusätzlich generierte Datei *pathdetails.txt* enthält sämtliche Pfade mit der Anzahl enthaltener Dateien. Bei Bedarf kann hier Ersatz für "unerwünschte" meist-verwendet-Pfade entnommen werden (z.B. bei Wiederholungen, etc.). Ausserdem sind die erkannten Caches mit Anzahl enthaltener Dateien sowie deren Pfade ersichtlich. Diese Cache-Inhalte erscheinen bei der Auflistung der meist-verwendet-Pfade **nicht** (Ausnahme: Vorschaubilder bzw. `is_thumbcache: true`)
-* Ein leeres Datum (z.B. gecarvte Dateien) wird als `undefiniert` ausgegeben.
-* Es kann vorkommen, dass eine Spalte ein Semikolon (`;`) enthält. Betroffene Spalten werden durch Griffeye in Anführungszeichen (`"`) gepackt. Dies kann normal verarbeitet werden. Wird jedoch eine CSV-Eintrag mit einer unpassenden Anzahl Semikolon ausserhalb von Anführungszeichen festgestellt, wird der entsprechende Eintrag bei der Verarbeitung ignoriert und eine entsprechende Meldung inkl. betroffener Zeilennummern ausgegeben.
+- Ist die gleiche Datei mehrfach vorhanden, wird sie auch mehrfach gezählt und in den entsprechenden Tabellen angezeigt. Die anschliessend angegebene Zahl in Klammern entspricht jeweils der Anzahl gefundener Dateien ohne Duplikate (binary unique).
+- Die zusätzlich generierte Datei *pathdetails.txt* enthält sämtliche Pfade mit der Anzahl enthaltener Dateien. Bei Bedarf kann hier Ersatz für "unerwünschte" meist-verwendet-Pfade entnommen werden (z.B. bei Wiederholungen, etc.). Ausserdem sind die erkannten Caches mit Anzahl enthaltener Dateien sowie deren Pfade ersichtlich. Diese Cache-Inhalte erscheinen bei der Auflistung der meist-verwendet-Pfade **nicht** (Ausnahme: Vorschaubilder bzw. `is_thumbcache: true`)
+- Ein leeres Datum (z.B. gecarvte Dateien) wird als `undefiniert` ausgegeben.
+- Es kann vorkommen, dass eine Spalte ein Semikolon (`;`) enthält. Betroffene Spalten werden durch Griffeye in Anführungszeichen (`"`) gepackt. Dies kann normal verarbeitet werden. Wird jedoch eine CSV-Eintrag mit einer unpassenden Anzahl Semikolon ausserhalb von Anführungszeichen festgestellt, wird der entsprechende Eintrag bei der Verarbeitung ignoriert und eine entsprechende Meldung inkl. betroffener Zeilennummern ausgegeben.
+- Beim Datenexport aus Griffeye muss die Spalte *EXIF - Comment* **deaktiviert** sein. Diese kann aufgrund der teilweise exotischen Inhalte zu Problemen führen.
 
 
 ## Konfiguration
