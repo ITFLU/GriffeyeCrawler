@@ -7,15 +7,17 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 - Summiert die Bilder und Videos (Total & binary unique)
 - Fasst die Dateipfade zusammen und unterteilt diese in Cache- & Nicht-Cache-Pfade auf
 - Ermittelt die Pfade mit den meisten Inhalten
-- Ermittelt das prozentuelle Verhältnis im Browsercache und der übrigen Ablage
+- Ermittelt den gesamten Zeitraum der Dateierstellung
 - Ermittelt die prozentuelle Verteilung der Dateierstellung im betroffenen Zeitraum
+- Ermittelt das prozentuelle Verhältnis im Browsercache und der übrigen Ablage
+- Ermittelt sämtliche erwähnten Punkte auch als Total über alle Geräte + die Anzahl der betroffenen Geräte
 - Generiert eine Ergebnisdatei im TXT oder DOCX-Format
 
 (c) 2021, Luzerner Polizei
 Author:  Michael Wicki
-Version: 0.3
+Version: 0.4
 """
-version = "v0.3"
+version = "v0.4"
 
 import os
 import sys
@@ -239,7 +241,7 @@ class Category:
 
     def getGroupedDates(self):
         """
-        returns a string with the percentage of illegals files per year
+        returns a string with the percentage of illegal files per year
         """
         result = ""
         for year in sorted(self.date_groups.keys()):
@@ -257,24 +259,31 @@ class Category:
                 sum += self.cachegroups[c]
         return sum
 
+    def getThumbcacheSum(self):
+        sum = 0
+        for c in self.cachegroups.keys():
+            if c in thumbcache_names:
+                sum += self.cachegroups[c]
+        return sum
+
 
 class ColumnNotFoundException(Exception):
     """
-    Error bei nicht gefundenem Spaltennamen
+    error in case of a column name not found
     """
     def __init__(self, columnname):
         self.message = "Spalte '{}' wurde nicht gefunden".format(columnname)
 
 class LineNotValidException(Exception):
     """
-    Error bei CSV-Line mit ; innerhalb eines Feldes ohne passende Anzahl "
+    error in case of a csv-entry with ; in a field without " around it
     """
     def __init__(self, linenumber):
         self.message = "Zeile '{}' ist ungültig".format(linenumber)
 
 class ResultFormatUnknownException(Exception):
     """
-    Error bei nicht definiertem Ausgabeformat
+    error in case of an undefined output format
     """
     def __init__(self, format):
         self.message = "Ausgabeformat unbekannt ('{}')".format(format)
@@ -475,7 +484,13 @@ def writeOutputfileTxt():
                 file_result.write("\n")
                 # show top-paths
                 i = 0
-                for k in sorted(cat.paths, key=cat.paths.get, reverse=True):
+                 # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
+                temppaths = dict(cat.paths)
+                thumbsum = cat.getThumbcacheSum()
+                if thumbsum > 0:
+                    temppaths[name_for_thumbcache] = thumbsum
+                # work with the temporary pathlist incl. the thumbcache-entry
+                for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
                     if i > config["result"]["number_of_showed_paths"]:
                         break;
@@ -630,7 +645,13 @@ def writeOutputfileDocx():
                 # show top-paths
                 rows = ""
                 i = 0
-                for k in sorted(cat.paths, key=cat.paths.get, reverse=True):
+                # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
+                temppaths = dict(cat.paths)
+                thumbsum = cat.getThumbcacheSum()
+                if thumbsum > 0:
+                    temppaths[name_for_thumbcache] = thumbsum
+                # work with the temporary pathlist incl. the thumbcache-entry
+                for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
                     if i > config["result"]["number_of_showed_paths"]:
                         break
@@ -706,8 +727,14 @@ def writePathDetails():
             file_result.write("\n")
 
             # show paths
-            for k in sorted(cat.paths, key=cat.paths.get, reverse=True):
-                file_result.write("- {} >>> {}\n".format(k, str(cat.paths[k])))
+            # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
+            temppaths = dict(cat.paths)
+            thumbsum = cat.getThumbcacheSum()
+            if thumbsum > 0:
+                temppaths[name_for_thumbcache] = thumbsum
+            # work with the temporary pathlist incl. the thumbcache-entry
+            for k in sorted(temppaths, key=temppaths.get, reverse=True):
+                file_result.write("- {} >>> {}\n".format(k, str(temppaths[k])))
             # if available, write other caches
             if len(cat.cachepaths)>0:
                 file_result.write("    > Caches <\n")
@@ -753,10 +780,13 @@ try:
         category_sort[cat["sort"]] = cat["name"]
     known_cache_paths = {}
     browser_names = []
+    thumbcache_names = []
     for cac in config["caches"]:
         known_cache_paths[cac["path"]] = cac["name"]
         if cac["is_browser"] and cac["name"] not in browser_names:
             browser_names.append(cac["name"])
+        if cac["is_thumbcache"] and cac["name"] not in thumbcache_names:
+            thumbcache_names.append(cac["name"])
 
     # ask for names & options
     input_filename = input("Name des Input-CSV (Default: {} aus {}) > ".format(input_filename, input_directory)) or input_filename
@@ -847,6 +877,12 @@ try:
 
     # write output-files
     print("Schreibe Ergebnisdatei...")
+    name_for_thumbcache = config["other"]["name_for_thumbcache"]
+    
+    # create output directory if not existing
+    if not os.path.isdir(result_directory):
+        os.mkdir(result_directory)
+
     if result_format == "txt":
         writeOutputfileTxt()
     elif result_format == "docx":
@@ -862,30 +898,37 @@ try:
     print("ERLEDIGT! {} Datensätze verarbeitet (siehe '{}')".format(counter, result_filename))
 
 except ColumnNotFoundException as exp:
+    print()
     print("ERROR: Verarbeitung abgebrochen!")
     print(">", exp.message)
 except ResultFormatUnknownException as exp:
+    print()
     print("ERROR: Verarbeitung abgebrochen!")
     print(">", exp.message)
 except FileNotFoundError as exp:
+    print()
     print("ERROR: Verarbeitung abgebrochen!")
     print("> Datei '{}' nicht gefunden".format(exp.filename))
 except KeyError as exp:
+    print()
     print("ERROR: Verarbeitung abgebrochen!")
     print("> Konfiguration '{}' nicht gefunden".format(exp))
 except UnicodeDecodeError as exp:
+    print()
     print("ERROR: Verarbeitung abgebrochen!")
     if exp.args[0] == "utf-8":
         print("Datei liegt nicht im UTF-8-Format vor. Config anpassen oder Datei umwandeln...")
     else:
         print("Datei liegt in einem unbekannten Format vor")
 except UnicodeError as exp:
+    print()
     print("ERROR: Verarbeitung abgebrochen!")
     if "UTF-16" in exp.args[0]:
         print("Datei liegt nicht im UTF-16-Format vor. Config anpassen oder Datei umwandeln...")
     else:
         print("Datei liegt in einem unbekannten Format vor")
 except Exception as exp:
+    print()
     print("ERROR: Verarbeitung abgebrochen!")
     traceback.print_exc()
 

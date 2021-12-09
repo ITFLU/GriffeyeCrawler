@@ -1,5 +1,9 @@
 # GriffeyeCrawler - Changelog
 
+## Version 0.4
+- Feature: Thumbcaches werden gesammelt als einen Eintrag in den Top-Pfaden aufgelistet (#12)
+- Bugfix: Output-Verzeichnis wird bei Nichtauffinden automatisch erstellt (#11)
+ 
 ## Version 0.3
 - Tabellen um den Wert "unique" (binary) erweitert (#9)
 - Leere "Created Time" wo möglich durch "Last Write Time" ersetzen. Bis jetzt nur bei Mobiles aufgefallen... (#10)
