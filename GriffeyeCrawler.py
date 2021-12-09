@@ -878,6 +878,11 @@ try:
     # write output-files
     print("Schreibe Ergebnisdatei...")
     name_for_thumbcache = config["other"]["name_for_thumbcache"]
+    
+    # create output directory if not existing
+    if not os.path.isdir(result_directory):
+        os.mkdir(result_directory)
+
     if result_format == "txt":
         writeOutputfileTxt()
     elif result_format == "docx":
