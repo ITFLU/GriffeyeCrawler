@@ -10,11 +10,11 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 - Generiert eine Ergebnisdatei im TXT oder DOCX-Format
 
 ## Export aus Griffeye
-- Report...
-- CSV
-- *Exclude Binary & Visual Copies* deaktivieren
-- Gewünschte Kategorien markieren
-- Gewünschte Spalten markieren (*EXIF* - *Comment* deaktivieren)
+- Menütab *Report / Export*
+- *CSV*
+- *Illegal Files*
+  - *EXIF* - *Comment* deaktivieren
+  - *Bookmarks* deaktivieren
   - Für das Script benötigt: *Category*, *File Path*, *File Type*, *Created Date* (evtl. *Last Write Time*), *Source ID*, *MD5* (oder *SHA-1*)
 
 ## Verwendung

@@ -1,7 +1,7 @@
 {
 	"input": {
 		"filename": "report_all.csv",
-		"encoding": "utf16",
+		"encoding": "utf8",
 		"directory": "_files"
 
 	},
@@ -72,6 +72,7 @@
 		{ "name": "Opera Browser", "is_browser": true, "is_thumbcache": false, "path": ".opera/" },
 		{ "name": "Apple Safari", "is_browser": true, "is_thumbcache": false, "path": "Safari\\Cache" },
 		{ "name": "Apple Safari", "is_browser": true, "is_thumbcache": false, "path": "com.apple.Safari/fsCachedData" },
+		{ "name": "Avast Secure Browser", "is_browser": true, "is_thumbcache": false, "path": "AppData\\Local\\AVAST Software\\Browser\\User Data" },
 		{ "name": "Skype Messenger", "is_browser": false, "is_thumbcache": false, "path": "media_messaging\\media_cache" },
 		{ "name": "Skype Messenger", "is_browser": false, "is_thumbcache": false, "path": "Microsoft.SkypeApp_kzf8qxf38zg5c" },
 		{ "name": "Skype Messenger", "is_browser": false, "is_thumbcache": false, "path": "Skype for Desktop\\Cache" },
