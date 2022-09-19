@@ -180,7 +180,7 @@ class Category:
     def increaseDate(self, date):
         year = int(date[6:10])
         if year == 1:
-            year = 9999;
+            year = 9999
         if year not in self.date_groups.keys():
             self.date_groups[year] = 1  # create
         else:
@@ -301,7 +301,6 @@ def progress(count, total, status=''):
     sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', status))
     sys.stdout.flush()
 
-
 def getLinecount(filename):
     """
     count total lines for progressbars
@@ -334,11 +333,23 @@ def shortenPath(path):
     first = path[path.find(os.path.sep)+1:]
     return first[first.find(os.path.sep)+1:]
 
+def detectSeparator(header):
+    """
+    detect the csv separator (, or ;)
+    """
+    global csv_separator
+    if header.find(',') > -1:
+        csv_separator = ","
+    elif header.find(';') > -1:
+        csv_separator = ";"
+    else:
+        csv_separator = input("CSV-Separator konnte nicht ermittelt werden... Durch welches Zeichen werden die Spalten getrennt?")
+
 def checkColumns(header):
     """
     check for needed columns & fill columnindex-dictionary for column access with columnname
     """
-    cols = header[:-1].split(';')
+    cols = header[:-1].split(csv_separator)
     for c in config["needed_columns"]:
         if c["columnname"] in cols:
             # column in csv found
@@ -358,17 +369,23 @@ def checkColumns(header):
         column_index[alt_key] = cols.index(alt_date)
 
 def convertLine(line, linenumber):
-    # cut out field with semicolon in it
-    pos_start = line.find('"')+1
-    pos_end = line.find('"', pos_start)
-    if pos_start == 0 or pos_end == -1:
-        raise LineNotValidException(linenumber);
-    field = line[pos_start:pos_end]
-    # get range before and after the field
-    first_part = line[:pos_start-2]  # -1 ", -1 ;
-    second_part = line[pos_end+2:-1]   # +1 ", +1 ;
-    # merge lists
-    return first_part.split(";")+[field]+second_part.split(";")
+    result = []
+    while line.find('"') > -1:
+        # cut out field with separator in it
+        pos_start = line.find('"')+1
+        pos_end = line.find('"', pos_start)
+        if pos_start == 0 or pos_end == -1:
+            raise LineNotValidException(linenumber)
+        field = line[pos_start:pos_end]
+        # get range before and after the field
+        first_part = line[:pos_start-2]  # -1 ", -1 
+        second_part = line[pos_end+2:-1]   # +1 ", +1 
+        # add first part to result_list
+        result = result + first_part.split(csv_separator) + [field]
+        # cut first part of line
+        line = second_part
+    result = result + second_part.split(csv_separator)
+    return result
 
 def analyzeFile(filename):
     """
@@ -382,18 +399,19 @@ def analyzeFile(filename):
         counter += 1
         if counter == 0:
             # csv-header...
+            detectSeparator(line)
             checkColumns(line)
             global column_count
-            column_count = line.count(";")
+            column_count = line.count(csv_separator)
             continue
 
         # csv-entry...
         # get device & date from csv
         try:
-            if line.count(";") != column_count:
+            if line.count(csv_separator) != column_count:
                 data = convertLine(line, counter+1)
             else:
-                data = line.split(";")
+                data = line.split(csv_separator)
             data_category = data[column_index['col_category']]
             data_date = data[column_index['col_date']]
             # if date is empty (01.01.0001) try the alternative date
@@ -493,7 +511,7 @@ def writeOutputfileTxt():
                 for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
                     if i > config["result"]["number_of_showed_paths"]:
-                        break;
+                        break
                     file_result.write("- {}\n".format(shortenPath(k)))
 
         file_result.write("\n")
@@ -759,6 +777,7 @@ linecount = 0
 empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
 empty_date_string = "01.01.0001 00:00:00"
 invalid_lines = []
+csv_separator = ""
 
 try:
     print("===== GRIFFEYE-CRAWLER {} =====".format(version))
@@ -831,10 +850,10 @@ try:
 
         # get data from file
         try:
-            if line.count(";") != column_count:
+            if line.count(csv_separator) != column_count:
                 column = convertLine(line, counter+1)
             else:
-                column = line.split(";")
+                column = line.split(csv_separator)
             data_category = column[column_index['col_category']]
             data_path = column[column_index['col_path']]
             data_type = column[column_index['col_type']]
@@ -870,7 +889,7 @@ try:
                 total_cat = Category(dev_cat.name, dev_cat.min_date)
                 total[dev_cat.name] = total_cat
             else:
-                total_cat = total[dev_cat.name];
+                total_cat = total[dev_cat.name]
             # merge device-category to total-category
             total_cat.merge(dev_cat)
     print()
