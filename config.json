@@ -1,20 +1,14 @@
 {
 	"input": {
-		"filename": "report_all.csv",
-		"encoding": "utf8",
-		"directory": "_files"
-
+		"encoding": "utf8"
 	},
 
 	"result": {
-		"filename": "result.docx",
-		"directory": "_files",
 		"encoding": "utf8",
 		"number_of_showed_paths": 5,
 		"generate_pathdetails": true,
 		"pathdetails_name": "pathdetails.txt",
-		"pathdetails_encoding": "utf8",
-		"pathdetails_directory": "_files"
+		"pathdetails_encoding": "utf8"
 	},
 
 	"other": {

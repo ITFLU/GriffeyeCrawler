@@ -704,10 +704,12 @@ def writePathDetails():
     """
     creates the outputfile (txt) with detailed information
     """
-    path = config["result"]["pathdetails_directory"]
     name = config["result"]["pathdetails_name"]
+    if not name.endswith(".txt"):
+        name = name+".txt"
+    name = f"{result_basename}_{name}"
     enc = config["result"]["pathdetails_encoding"]
-    file_result = open(path+os.path.sep+name,"w", encoding=enc)
+    file_result = open(result_path+os.path.sep+name,"w", encoding=enc)
     # write results of file-analyze
     file_result.write("GRIFFEYE-CRAWLER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*47+"\n")
@@ -789,12 +791,9 @@ try:
     with open('config.json') as c:
         data = c.read()
     config = json.loads(data)
-    input_filename = config["input"]["filename"]
     input_encoding = config["input"]["encoding"]
-    input_directory = config["input"]["directory"]
-    result_filename = config["result"]["filename"]
+    result_filename = ""
     result_encoding = config["result"]["encoding"]
-    result_directory = config["result"]["directory"]
     category_legality = {}
     category_sort = {}
     for cat in config["categories"]:
@@ -810,20 +809,21 @@ try:
         if cac["is_thumbcache"] and cac["name"] not in thumbcache_names:
             thumbcache_names.append(cac["name"])
 
-    # ask for names & options
-    input_filename = input("Name des Input-CSV (Default: {} aus {}) > ".format(input_filename, input_directory)) or input_filename
-    result_filename = input("Name der Ergebnisdatei (Default: {}) [.txt, .docx] > ".format(result_filename)) or result_filename
-    result_format = "txt"
-    if ".docx" in result_filename:
+    # ask for informations
+    input_filename = input("Pfad/Name des Input-CSV > ")
+    default_format = "docx"
+    result_format = input("Format des Ergebnisses (Default: {}) [.txt, .docx] > ".format(default_format)) or default_format
+    if result_format.strip().lower() == "docx":
         result_format = "docx"
-    if ".txt" in result_filename:
+    if result_format.strip().lower() == "txt":
         result_format = "txt"
     print()
 
-    # combine filenames and directory if needed
-    if os.path.sep not in input_filename:
-        input_filename = input_directory+os.path.sep+input_filename
-    result_filename = result_directory+os.path.sep+result_filename
+    # generate result path/name based on inputfile
+    result_path = os.path.dirname(input_filename)
+    temp_filename = os.path.basename(input_filename)
+    result_basename = os.path.splitext(temp_filename)[0]
+    result_filename = result_path+os.path.sep+result_basename+"."+result_format
 
     # get linecount for progressbar
     linecount = getLinecount(input_filename)
@@ -901,10 +901,6 @@ try:
     print("Schreibe Ergebnisdatei...")
     name_for_thumbcache = config["other"]["name_for_thumbcache"]
     
-    # create output directory if not existing
-    if not os.path.isdir(result_directory):
-        os.mkdir(result_directory)
-
     if result_format == "txt":
         writeOutputfileTxt()
     elif result_format == "docx":
