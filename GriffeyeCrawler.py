@@ -80,7 +80,9 @@ class Category:
     def __init__(self, name, initial_date):
         self.name = name
         self.legality = category_legality.get(name, True)
-        self.min_date = initial_date
+        self.min_date = empty_date
+        if initial_date != unix_date:
+            self.min_date = initial_date
         self.max_date = initial_date
         self.date_groups = {}
         self.pic_count = 0
@@ -93,7 +95,7 @@ class Category:
         self.vid_hashes = set()
 
     def addDate(self, date):
-        if date != empty_date:
+        if date != empty_date and date != unix_date:
             if self.min_date == empty_date or date < self.min_date:
                 self.min_date = date
             if self.max_date == empty_date or date > self.max_date:
@@ -179,7 +181,7 @@ class Category:
 
     def increaseDate(self, date):
         year = int(date[6:10])
-        if year == 1:
+        if year == 1 or year == 1970: # no date or unix date
             year = 9999
         if year not in self.date_groups.keys():
             self.date_groups[year] = 1  # create
@@ -776,6 +778,7 @@ column_count = 0
 linecount = 0
 empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
 empty_date_string = "01.01.0001 00:00:00"
+unix_date = datetime.strptime("01.01.1970", "%d.%m.%Y")
 invalid_lines = []
 csv_separator = ""
 
