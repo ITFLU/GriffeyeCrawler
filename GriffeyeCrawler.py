@@ -26,12 +26,10 @@ import traceback
 from datetime import datetime
 # docx...
 from docx import Document
-from docx.shared import Inches
 from docx.shared import Pt
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.enum.table import WD_ALIGN_VERTICAL
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
 
@@ -141,12 +139,12 @@ class Category:
                 self.paths[path] += 1   # increase
         # merge cachepaths
         for path in merge_cat.cachepaths.keys():
-            cache_group = self.getCacheGroup(path)
-            if cache_group is not None:
-                if cache_group not in self.cachegroups.keys():
-                    self.cachegroups[cache_group] = merge_cat.cachepaths[path]    # create
+            group = self.getCacheGroup(path)
+            if group is not None:
+                if group not in self.cachegroups.keys():
+                    self.cachegroups[group] = merge_cat.cachepaths[path]    # create
                 else:
-                    self.cachegroups[cache_group] += merge_cat.cachepaths[path]     # increase
+                    self.cachegroups[group] += merge_cat.cachepaths[path]     # increase
         # merge hashes
         self.pic_hashes.update(merge_cat.getPicHashset())
         self.vid_hashes.update(merge_cat.getVidHashset())
@@ -164,14 +162,14 @@ class Category:
             self.cachegroups[self.getCacheGroup(path)] += 1
         else:
             # path NOT in cachepath >> check for cache
-            cache_group = self.getCacheGroup(path)
-            if cache_group is not None:
+            group = self.getCacheGroup(path)
+            if group is not None:
                 # path is cache
                 self.cachepaths[path] = 1 # create
-                if cache_group not in self.cachegroups.keys():
-                    self.cachegroups[cache_group] = 1    # create
+                if group not in self.cachegroups.keys():
+                    self.cachegroups[group] = 1    # create
                 else:
-                    self.cachegroups[cache_group] += 1   # increase
+                    self.cachegroups[group] += 1   # increase
             else:
                 # path is NOT cache
                 if path not in self.paths.keys():
@@ -254,12 +252,22 @@ class Category:
             result = result+"{}: {:.0f}%, ".format(year, perc)
         return result[:-2] # kill last ', '
 
-    def getBrowserCacheSum(self):
+    def getBrowserCacheTotal(self):
         sum = 0
         for c in self.cachegroups.keys():
             if c in browser_names:
                 sum += self.cachegroups[c]
         return sum
+
+    def getBrowserCacheSums(self):
+        """
+        returns a dict with counts (value) for the specific browsers (key)
+        """
+        result = {}
+        for c in self.cachegroups.keys():
+            if c in browser_names:
+                result[c] = self.cachegroups[c]
+        return result
 
     def getThumbcacheSum(self):
         sum = 0
@@ -466,7 +474,7 @@ def writeOutputfileTxt():
             file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
             file_result.write("\n")
             # proportion storage <-> browser cache
-            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
+            perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
             file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
             file_result.write("\n")
     file_result.write("\n")
@@ -496,19 +504,23 @@ def writeOutputfileTxt():
                 file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
                 file_result.write("\n")
                 # proportion storage <-> browser cache
-                perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
+                perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
                 file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
                 file_result.write("\n")
                 # paths
-                file_result.write("Speicherorte:\t")
+                file_result.write("Häufigste Speicherorte:\t")
                 file_result.write("\n")
                 # show top-paths
                 i = 0
-                 # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
+                # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
                 thumbsum = cat.getThumbcacheSum()
                 if thumbsum > 0:
                     temppaths[name_for_thumbcache] = thumbsum
+                browser_sums = cat.getBrowserCacheSums()
+                for b in browser_sums.keys():
+                    temppaths[name_for_browsercache+" "+b] = browser_sums[b]
+
                 # work with the temporary pathlist incl. the thumbcache-entry
                 for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
@@ -585,7 +597,7 @@ def writeOutputfileDocx():
             # proportion storage <-> browser cache
             row_cells = table.add_row().cells
             row_cells[0].text = "Anteil Browsercache:"
-            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
+            perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
             row_cells[1].text = "{:.0f}%".format(perc)
         
         # format table
@@ -657,19 +669,23 @@ def writeOutputfileDocx():
                 # proportion storage <-> browser cache
                 row_cells = table.add_row().cells
                 row_cells[0].text = "Anteil Browsercache:"
-                perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
+                perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
                 row_cells[1].text = "{:.0f}%".format(perc)
                 # paths
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Speicherort(e):"
+                row_cells[0].text = "Häufigste Speicherorte:"
                 # show top-paths
                 rows = ""
                 i = 0
-                # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
+                # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
                 thumbsum = cat.getThumbcacheSum()
                 if thumbsum > 0:
                     temppaths[name_for_thumbcache] = thumbsum
+                browser_sums = cat.getBrowserCacheSums()
+                for b in browser_sums.keys():
+                    temppaths[name_for_browsercache+" "+b] = browser_sums[b]
+
                 # work with the temporary pathlist incl. the thumbcache-entry
                 for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
@@ -741,8 +757,10 @@ def writePathDetails():
             file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
             file_result.write("\n")
             # proportion storage <-> browser cache
-            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
-            file_result.write("Anteil Browsercache:\t{:.0f}% >>> (Total: {}, Browsercache: {})".format(perc, cat.getCounts()[0], cat.getBrowserCacheSum()))
+            browser_total = cat.getBrowserCacheTotal()
+            counts_total = cat.getCounts()[0]
+            perc = (browser_total/counts_total)*100
+            file_result.write("Anteil Browsercache:\t{:.0f}% >>> (Total: {}, Browsercache: {})".format(perc, counts_total, browser_total))
             file_result.write("\n")
             # paths
             file_result.write("Speicherorte:\t")
@@ -900,6 +918,7 @@ try:
     # write output-files
     print("Schreibe Ergebnisdatei...")
     name_for_thumbcache = config["other"]["name_for_thumbcache"]
+    name_for_browsercache = config["other"]["name_for_browsercache"]
     
     if result_format == "txt":
         writeOutputfileTxt()

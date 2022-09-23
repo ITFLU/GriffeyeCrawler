@@ -14,7 +14,8 @@
 	"other": {
 		"alternative_date_column": "Last Write Time",
 		"alternative_date_key": "col_alt_date",
-		"name_for_thumbcache": "Vorschaubilder"
+		"name_for_thumbcache": "Vorschaubilder",
+		"name_for_browsercache": "Browsercache"
 	},
 	
 	"needed_columns": [
