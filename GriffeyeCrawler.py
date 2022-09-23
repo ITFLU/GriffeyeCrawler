@@ -829,6 +829,10 @@ try:
 
     # ask for informations
     input_filename = input("Pfad/Name des Input-CSV > ")
+    # remove " & ' from path (prevents error while reading the file)
+    input_filename = input_filename.replace("\"", "")
+    input_filename = input_filename.replace("'", "")
+    
     default_format = "docx"
     result_format = input("Format des Ergebnisses (Default: {}) [.txt, .docx] > ".format(default_format)) or default_format
     if result_format.strip().lower() == "docx":
