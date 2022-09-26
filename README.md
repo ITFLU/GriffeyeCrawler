@@ -47,6 +47,7 @@ Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung*
 - Ein leeres Datum (z.B. gecarvte Dateien) wird als `undefiniert` ausgegeben. Dasselbe gilt für den Unix-Timestamp 01.01.1970.
 - Der Separator innerhalb der CSV-Datei wird aufgrund der Headerzeile ermittelt (Basierend auf Griffeye nur `;` oder `,` möglich). Es kann vorkommen, dass eine Spalte einen Separator enthält. Betroffene Spalten werden durch Griffeye in Anführungszeichen (`"`) gepackt. Dies kann normal verarbeitet werden. Wird jedoch eine CSV-Eintrag mit einer unpassenden Anzahl Semikolon ausserhalb von Anführungszeichen festgestellt, wird der entsprechende Eintrag bei der Verarbeitung ignoriert und eine entsprechende Meldung inkl. betroffener Zeilennummern ausgegeben.
 - Beim Datenexport aus Griffeye muss die Spalte *EXIF - Comment* **deaktiviert** sein. Diese kann aufgrund der teilweise exotischen Inhalte zu Problemen führen.
+- Werte unter 1% (z.B. 0.3%) werden in der prozentuellen Verteilung als *<1%* dargestellt.
 
 
 ## Konfiguration

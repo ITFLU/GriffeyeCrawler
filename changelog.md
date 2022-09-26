@@ -5,6 +5,7 @@
 - Feature: Unix-Timestamp (01.01.1970) ebenfalls als "undefiniert" behandeln (#15)
 - Feature: CSV-Separator wird nun anhand der Headerzeile ermittelt (#16)
 - Feature: Ergebnisdatei wird nun im selben Pfad mit demselben Namen (x.docx) wie die Inputdatei erstellt (#18)
+- Feature: Werte unter 1% Prozent werden neu als "<1%" anstelle des vorherigen "0%" (aufgrund der Rundung) dargestellt.
 - Bugfix: Fehler bei der Bereinigung von Zeilen mit Komma innerhalb von " behoben, wenn Komma Separator ist  (#17)
 - Bugfix: Fehler beim Parsen des Dateipfads durch unterschiedliche Pfadgenerierung bei Drag-n-Drop in verschiedenen Terminals behoben
 

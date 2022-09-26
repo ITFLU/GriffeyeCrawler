@@ -249,7 +249,10 @@ class Category:
             perc = (self.date_groups[year]/self.tot_count)*100
             if year == 9999:
                 year = "undef."
-            result = result+"{}: {:.0f}%, ".format(year, perc)
+            perc_str = "{:.0f}%".format(perc)
+            if round(perc, 0) == 0 and perc > 0:
+                perc_str = "<1%"
+            result = result+"{}: {}, ".format(year, perc_str)
         return result[:-2] # kill last ', '
 
     def getBrowserCacheTotal(self):
@@ -335,6 +338,12 @@ def getTitleString(title, symbol="-", length=70):
     if half_title%2 > 0 or half_length%2 > 0:
         addition = symbol
     return symbol*symbol_count+" "+title+" "+symbol*symbol_count+addition
+
+def getBrowserPercent(browser_count, total_count):
+    perc = (browser_count/total_count)*100
+    if round(perc, 0) == 0 and perc > 0:
+        return "<1%"
+    return "{:.0f}%".format(perc)
 
 def shortenPath(path):
     """
@@ -474,8 +483,7 @@ def writeOutputfileTxt():
             file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
             file_result.write("\n")
             # proportion storage <-> browser cache
-            perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
-            file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
+            file_result.write("Anteil Browsercache:\t{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0])))
             file_result.write("\n")
     file_result.write("\n")
 
@@ -504,8 +512,7 @@ def writeOutputfileTxt():
                 file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
                 file_result.write("\n")
                 # proportion storage <-> browser cache
-                perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
-                file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
+                file_result.write("Anteil Browsercache:\t{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0])))
                 file_result.write("\n")
                 # paths
                 file_result.write("Häufigste Speicherorte:\t")
@@ -597,8 +604,7 @@ def writeOutputfileDocx():
             # proportion storage <-> browser cache
             row_cells = table.add_row().cells
             row_cells[0].text = "Anteil Browsercache:"
-            perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
-            row_cells[1].text = "{:.0f}%".format(perc)
+            row_cells[1].text = "{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0]))
         
         # format table
         for row in table.rows[1:]:
@@ -669,8 +675,7 @@ def writeOutputfileDocx():
                 # proportion storage <-> browser cache
                 row_cells = table.add_row().cells
                 row_cells[0].text = "Anteil Browsercache:"
-                perc = (cat.getBrowserCacheTotal()/cat.getCounts()[0])*100
-                row_cells[1].text = "{:.0f}%".format(perc)
+                row_cells[1].text = "{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0]))
                 # paths
                 row_cells = table.add_row().cells
                 row_cells[0].text = "Häufigste Speicherorte:"
@@ -760,7 +765,10 @@ def writePathDetails():
             browser_total = cat.getBrowserCacheTotal()
             counts_total = cat.getCounts()[0]
             perc = (browser_total/counts_total)*100
-            file_result.write("Anteil Browsercache:\t{:.0f}% >>> (Total: {}, Browsercache: {})".format(perc, counts_total, browser_total))
+            perc_str = "{:.0f}%".format(perc)
+            if round(perc, 0) == 0 and perc > 0:
+                perc_str = "<1%"
+            file_result.write("Anteil Browsercache:\t{} >>> (Total: {}, Browsercache: {})".format(perc_str, counts_total, browser_total))
             file_result.write("\n")
             # paths
             file_result.write("Speicherorte:\t")
@@ -834,7 +842,7 @@ try:
     input_filename = input_filename.replace("'", "")
     
     default_format = "docx"
-    result_format = input("Format des Ergebnisses (Default: {}) [.txt, .docx] > ".format(default_format)) or default_format
+    result_format = input("Format des Ergebnisses (Default: {}) [txt, docx] > ".format(default_format)) or default_format
     if result_format.strip().lower() == "docx":
         result_format = "docx"
     if result_format.strip().lower() == "txt":
