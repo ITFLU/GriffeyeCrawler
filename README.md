@@ -34,18 +34,20 @@ Start/Ausführung verhalten sich gleich wie unter *Ohne EXE - Start/Ausführung*
 
 #### Start/Ausführung
 - *GriffeyeCrawler.py* doppelklicken
-- Name der zu verarbeitenden CSV-Datei angeben. Der Standardwert (report_all.csv) kann einfach mit Enter bestätigt werden. Die entsprechende Datei kann auch mittels Drag-and-Drop ins Terminal gezogen werden.
-- Name der Ergebnisdatei inkl. Dateiendung angeben. Der Standardwert (result.docx) kann einfach mit Enter bestätigt werden. Es sind die Formate .txt & .docx möglich.
-- Das Ergebnis wird im Verzeichnis *_files* erstellt (Standardeinstellung). Ausserdem wird bei jeder Verarbeitung die Datei *pathdetails.txt* erstellt, welche detailliertere Informationen zu den ausgewerteten Daten enthält.
+- Name der zu verarbeitenden CSV-Datei angeben oder via Drag-n-Drop hineinziehen.
+- Format der Ergebnisdatei angeben (`txt` oder `docx` möglich). Der Standardwert (docx) kann einfach mit Enter bestätigt werden.
+- Das Ergebnis wird im Verzeichnis der angegebenen CSV-Datei mit demselben Namen erstellt. Ausserdem wird bei jeder Verarbeitung die Datei *{name}_pathdetails.txt* erstellt, welche detailliertere Informationen zu den ausgewerteten Daten enthält.
 **Bestehende Dateien werden ohne Warnung überschrieben!**
 
 
 ## Allgemeine Hinweise
 - Ist die gleiche Datei mehrfach vorhanden, wird sie auch mehrfach gezählt und in den entsprechenden Tabellen angezeigt. Die anschliessend angegebene Zahl in Klammern entspricht jeweils der Anzahl gefundener Dateien ohne Duplikate (binary unique).
-- Die zusätzlich generierte Datei *pathdetails.txt* enthält sämtliche Pfade mit der Anzahl enthaltener Dateien. Bei Bedarf kann hier Ersatz für "unerwünschte" meist-verwendet-Pfade entnommen werden (z.B. bei Wiederholungen, etc.). Ausserdem sind die erkannten Caches mit Anzahl enthaltener Dateien sowie deren Pfade ersichtlich. Diese Cache-Inhalte erscheinen bei der Auflistung der meist-verwendet-Pfade **nicht** (Ausnahme: Vorschaubilder bzw. `is_thumbcache: true`)
-- Ein leeres Datum (z.B. gecarvte Dateien) wird als `undefiniert` ausgegeben.
-- Es kann vorkommen, dass eine Spalte ein Semikolon (`;`) enthält. Betroffene Spalten werden durch Griffeye in Anführungszeichen (`"`) gepackt. Dies kann normal verarbeitet werden. Wird jedoch eine CSV-Eintrag mit einer unpassenden Anzahl Semikolon ausserhalb von Anführungszeichen festgestellt, wird der entsprechende Eintrag bei der Verarbeitung ignoriert und eine entsprechende Meldung inkl. betroffener Zeilennummern ausgegeben.
+- Die zusätzlich generierte Datei *pathdetails.txt* enthält sämtliche Pfade mit der Anzahl enthaltener Dateien. Bei Bedarf kann hier Ersatz für "unerwünschte" meist-verwendet-Pfade entnommen werden (z.B. bei Wiederholungen, etc.). Ausserdem sind die erkannten Caches mit Anzahl enthaltener Dateien sowie deren Pfade ersichtlich.
+- In Bericht werden die Vorschaubilder (`is_thumbcache: true`) gesammelt als ein einziger Eintrag angezeigt. Dasselbe gilt für die Browser-Caches (`is_browser: true`), welche jedoch pro Browser gesammelt angezeigt werden.
+- Ein leeres Datum (z.B. gecarvte Dateien) wird als `undefiniert` ausgegeben. Dasselbe gilt für den Unix-Timestamp 01.01.1970.
+- Der Separator innerhalb der CSV-Datei wird aufgrund der Headerzeile ermittelt (Basierend auf Griffeye nur `;` oder `,` möglich). Es kann vorkommen, dass eine Spalte einen Separator enthält. Betroffene Spalten werden durch Griffeye in Anführungszeichen (`"`) gepackt. Dies kann normal verarbeitet werden. Wird jedoch eine CSV-Eintrag mit einer unpassenden Anzahl Semikolon ausserhalb von Anführungszeichen festgestellt, wird der entsprechende Eintrag bei der Verarbeitung ignoriert und eine entsprechende Meldung inkl. betroffener Zeilennummern ausgegeben.
 - Beim Datenexport aus Griffeye muss die Spalte *EXIF - Comment* **deaktiviert** sein. Diese kann aufgrund der teilweise exotischen Inhalte zu Problemen führen.
+- Werte unter 1% (z.B. 0.3%) werden in der prozentuellen Verteilung als *<1%* dargestellt.
 
 
 ## Konfiguration
@@ -54,12 +56,12 @@ Bei Bedarf können diverse Einstellungen in der Datei *config.json* vorgenommen 
 ### Eingabedatei
 config.json: `input`
 
-Anpassungen des Default-Namens der CSV-Datei `filename`, deren Encoding-Formats `encoding` (Default *utf16* durch Griffeye) und des Default-Verzeichnisses (ohne Drag-n-Drop) `directory` sind hier möglich.
+Anpassung des Encoding-Formats `encoding` (Default *utf8* durch Griffeye) ist hier möglich.
 
 ### Ergebnisdatei
 config.json: `result`
 
-Anpassungen des Default-Namens `filename`, des Encoding-Formats `encoding` (Default *utf8*) und des Verzeichnisses `directory` der Ergebnisdatei sind hier möglich. Ausserdem die gewünschte Anzahl der meist vorkommenden Pfade `number_of_showed_paths`. Es kann definiert werden, ob die Detaildatei erstellt werden soll `generate_pathdetails` sowie deren Name `pathdetails_name`, Encoding-Format `pathdetails_encoding` (Default *utf8*) und Verzeichnis `pathdetails_directory`.
+Anpassung des Encoding-Formats `encoding` (Default *utf8*) ist hier möglich. Ausserdem die gewünschte Anzahl der meist vorkommenden Pfade `number_of_showed_paths`. Es kann definiert werden, ob die Detaildatei erstellt werden soll `generate_pathdetails` sowie deren Name `pathdetails_name`, Encoding-Format `pathdetails_encoding` (Default *utf8*) und Verzeichnis `pathdetails_directory`.
 
 ### Benötigte Spalten
 config.json: `needed_columns`
@@ -91,7 +93,7 @@ Der Sortierungswert `sort` der Kategorie bezieht sich auf die Reihenfolge der Au
 ### Pfade, Caches, Thumbnails
 config.json: `caches`
 
-Die Einteilung in Caches kann mittels der Option `path` definiert werden. Nach diesem Wert wird im Dateipfad gesucht, um die entsprechende Einteilung vorzunehmen. `name` definiert das entsprechende Produkt, während `is_browser` eine Definition als Browser-Cache ermöglicht (Berechung des prozentuellen Browser-Cache-Anteils). `is_thumbcache` definiert einen Thumbcache (Vorschaubilder), wodurch diese gesammelt als einen Wert ebenfalls in den meist vorkommenden Pfaden aufgeführt werden. Der dafür anzuzeigende Name ist unter `other` - `name_for_thumbcache` definiert.
+Die Einteilung in Caches kann mittels der Option `path` definiert werden. Nach diesem Wert wird im Dateipfad gesucht, um die entsprechende Einteilung vorzunehmen. `name` definiert das entsprechende Produkt, während `is_browser` eine Definition als Browser-Cache ermöglicht (Berechung des prozentuellen Browser-Cache-Anteils & Sammlung pro Browser in den meist vorkommenden Pfaden analog *is_thumbcache*). `is_thumbcache` definiert einen Thumbcache (Vorschaubilder), wodurch diese gesammelt als einen Wert ebenfalls in den meist vorkommenden Pfaden aufgeführt werden. Der dafür anzuzeigenden Namen sind unter `other` - `name_for_thumbcache` bzw. `other` - `name_for_browsercache` definiert.
 
 > **ACHTUNG:** Windows-Pfade müssen unter *path* mittels ``\\`` getrennt werden. Unix-basierte Dateisysteme (Linux, Apple, etc.) sind davon nicht betroffen. 
 > (z.B. Windows: `Firefox\\Profiles`, Apple: `Firefox/Profiles`)

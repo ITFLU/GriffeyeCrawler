@@ -1,26 +1,21 @@
 {
 	"input": {
-		"filename": "report_all.csv",
-		"encoding": "utf8",
-		"directory": "_files"
-
+		"encoding": "utf8"
 	},
 
 	"result": {
-		"filename": "result.docx",
-		"directory": "_files",
 		"encoding": "utf8",
 		"number_of_showed_paths": 5,
 		"generate_pathdetails": true,
 		"pathdetails_name": "pathdetails.txt",
-		"pathdetails_encoding": "utf8",
-		"pathdetails_directory": "_files"
+		"pathdetails_encoding": "utf8"
 	},
 
 	"other": {
 		"alternative_date_column": "Last Write Time",
 		"alternative_date_key": "col_alt_date",
-		"name_for_thumbcache": "Vorschaubilder"
+		"name_for_thumbcache": "Vorschaubilder",
+		"name_for_browsercache": "Browsercache"
 	},
 	
 	"needed_columns": [
@@ -59,6 +54,9 @@
 		{ "name": "Mozilla Firefox", "is_browser": true, "is_thumbcache": false, "path": "Caches/Firefox/Profiles" },
 		{ "name": "Mozilla Firefox", "is_browser": true, "is_thumbcache": false, "path": ".cache/mozilla/firefox" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Default\\Cache" },
+		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Profile 1\\Cache" },
+		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Profile 2\\Cache" },
+		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Profile 3\\Cache" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Application Support/Google/Chrome" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Caches/Google/Chrome" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": ".cache/google-chrome/" },

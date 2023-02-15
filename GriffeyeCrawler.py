@@ -13,11 +13,11 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 - Ermittelt sämtliche erwähnten Punkte auch als Total über alle Geräte + die Anzahl der betroffenen Geräte
 - Generiert eine Ergebnisdatei im TXT oder DOCX-Format
 
-(c) 2021, Luzerner Polizei
+(c) 2022, Luzerner Polizei
 Author:  Michael Wicki
-Version: 0.4
+Version: 0.5
 """
-version = "v0.4"
+version = "v0.5"
 
 import os
 import sys
@@ -26,12 +26,10 @@ import traceback
 from datetime import datetime
 # docx...
 from docx import Document
-from docx.shared import Inches
 from docx.shared import Pt
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.enum.table import WD_ALIGN_VERTICAL
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
 
@@ -80,7 +78,9 @@ class Category:
     def __init__(self, name, initial_date):
         self.name = name
         self.legality = category_legality.get(name, True)
-        self.min_date = initial_date
+        self.min_date = empty_date
+        if initial_date != unix_date:
+            self.min_date = initial_date
         self.max_date = initial_date
         self.date_groups = {}
         self.pic_count = 0
@@ -93,7 +93,7 @@ class Category:
         self.vid_hashes = set()
 
     def addDate(self, date):
-        if date != empty_date:
+        if date != empty_date and date != unix_date:
             if self.min_date == empty_date or date < self.min_date:
                 self.min_date = date
             if self.max_date == empty_date or date > self.max_date:
@@ -139,12 +139,12 @@ class Category:
                 self.paths[path] += 1   # increase
         # merge cachepaths
         for path in merge_cat.cachepaths.keys():
-            cache_group = self.getCacheGroup(path)
-            if cache_group is not None:
-                if cache_group not in self.cachegroups.keys():
-                    self.cachegroups[cache_group] = merge_cat.cachepaths[path]    # create
+            group = self.getCacheGroup(path)
+            if group is not None:
+                if group not in self.cachegroups.keys():
+                    self.cachegroups[group] = merge_cat.cachepaths[path]    # create
                 else:
-                    self.cachegroups[cache_group] += merge_cat.cachepaths[path]     # increase
+                    self.cachegroups[group] += merge_cat.cachepaths[path]     # increase
         # merge hashes
         self.pic_hashes.update(merge_cat.getPicHashset())
         self.vid_hashes.update(merge_cat.getVidHashset())
@@ -162,14 +162,14 @@ class Category:
             self.cachegroups[self.getCacheGroup(path)] += 1
         else:
             # path NOT in cachepath >> check for cache
-            cache_group = self.getCacheGroup(path)
-            if cache_group is not None:
+            group = self.getCacheGroup(path)
+            if group is not None:
                 # path is cache
                 self.cachepaths[path] = 1 # create
-                if cache_group not in self.cachegroups.keys():
-                    self.cachegroups[cache_group] = 1    # create
+                if group not in self.cachegroups.keys():
+                    self.cachegroups[group] = 1    # create
                 else:
-                    self.cachegroups[cache_group] += 1   # increase
+                    self.cachegroups[group] += 1   # increase
             else:
                 # path is NOT cache
                 if path not in self.paths.keys():
@@ -179,7 +179,7 @@ class Category:
 
     def increaseDate(self, date):
         year = int(date[6:10])
-        if year == 1:
+        if year == 1 or year == 1970: # no date or unix date
             year = 9999
         if year not in self.date_groups.keys():
             self.date_groups[year] = 1  # create
@@ -249,15 +249,28 @@ class Category:
             perc = (self.date_groups[year]/self.tot_count)*100
             if year == 9999:
                 year = "undef."
-            result = result+"{}: {:.0f}%, ".format(year, perc)
+            perc_str = "{:.0f}%".format(perc)
+            if round(perc, 0) == 0 and perc > 0:
+                perc_str = "<1%"
+            result = result+"{}: {}, ".format(year, perc_str)
         return result[:-2] # kill last ', '
 
-    def getBrowserCacheSum(self):
+    def getBrowserCacheTotal(self):
         sum = 0
         for c in self.cachegroups.keys():
             if c in browser_names:
                 sum += self.cachegroups[c]
         return sum
+
+    def getBrowserCacheSums(self):
+        """
+        returns a dict with counts (value) for the specific browsers (key)
+        """
+        result = {}
+        for c in self.cachegroups.keys():
+            if c in browser_names:
+                result[c] = self.cachegroups[c]
+        return result
 
     def getThumbcacheSum(self):
         sum = 0
@@ -325,6 +338,12 @@ def getTitleString(title, symbol="-", length=70):
     if half_title%2 > 0 or half_length%2 > 0:
         addition = symbol
     return symbol*symbol_count+" "+title+" "+symbol*symbol_count+addition
+
+def getBrowserPercent(browser_count, total_count):
+    perc = (browser_count/total_count)*100
+    if round(perc, 0) == 0 and perc > 0:
+        return "<1%"
+    return "{:.0f}%".format(perc)
 
 def shortenPath(path):
     """
@@ -470,8 +489,7 @@ def writeOutputfileTxt():
             file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
             file_result.write("\n")
             # proportion storage <-> browser cache
-            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
-            file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
+            file_result.write("Anteil Browsercache:\t{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0])))
             file_result.write("\n")
     file_result.write("\n")
 
@@ -500,19 +518,22 @@ def writeOutputfileTxt():
                 file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
                 file_result.write("\n")
                 # proportion storage <-> browser cache
-                perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
-                file_result.write("Anteil Browsercache:\t{:.0f}%".format(perc))
+                file_result.write("Anteil Browsercache:\t{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0])))
                 file_result.write("\n")
                 # paths
-                file_result.write("Speicherorte:\t")
+                file_result.write("Häufigste Speicherorte:\t")
                 file_result.write("\n")
                 # show top-paths
                 i = 0
-                 # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
+                # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
                 thumbsum = cat.getThumbcacheSum()
                 if thumbsum > 0:
                     temppaths[name_for_thumbcache] = thumbsum
+                browser_sums = cat.getBrowserCacheSums()
+                for b in browser_sums.keys():
+                    temppaths[name_for_browsercache+" "+b] = browser_sums[b]
+
                 # work with the temporary pathlist incl. the thumbcache-entry
                 for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
@@ -589,8 +610,7 @@ def writeOutputfileDocx():
             # proportion storage <-> browser cache
             row_cells = table.add_row().cells
             row_cells[0].text = "Anteil Browsercache:"
-            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
-            row_cells[1].text = "{:.0f}%".format(perc)
+            row_cells[1].text = "{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0]))
         
         # format table
         for row in table.rows[1:]:
@@ -661,19 +681,22 @@ def writeOutputfileDocx():
                 # proportion storage <-> browser cache
                 row_cells = table.add_row().cells
                 row_cells[0].text = "Anteil Browsercache:"
-                perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
-                row_cells[1].text = "{:.0f}%".format(perc)
+                row_cells[1].text = "{}".format(getBrowserPercent(cat.getBrowserCacheTotal(), cat.getCounts()[0]))
                 # paths
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Speicherort(e):"
+                row_cells[0].text = "Häufigste Speicherorte:"
                 # show top-paths
                 rows = ""
                 i = 0
-                # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
+                # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
                 thumbsum = cat.getThumbcacheSum()
                 if thumbsum > 0:
                     temppaths[name_for_thumbcache] = thumbsum
+                browser_sums = cat.getBrowserCacheSums()
+                for b in browser_sums.keys():
+                    temppaths[name_for_browsercache+" "+b] = browser_sums[b]
+
                 # work with the temporary pathlist incl. the thumbcache-entry
                 for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
@@ -708,10 +731,12 @@ def writePathDetails():
     """
     creates the outputfile (txt) with detailed information
     """
-    path = config["result"]["pathdetails_directory"]
     name = config["result"]["pathdetails_name"]
+    if not name.endswith(".txt"):
+        name = name+".txt"
+    name = f"{result_basename}_{name}"
     enc = config["result"]["pathdetails_encoding"]
-    file_result = open(path+os.path.sep+name,"w", encoding=enc)
+    file_result = open(result_path+os.path.sep+name,"w", encoding=enc)
     # write results of file-analyze
     file_result.write("GRIFFEYE-CRAWLER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
     file_result.write("="*47+"\n")
@@ -743,8 +768,13 @@ def writePathDetails():
             file_result.write("Verteilung im Zeitraum:\t{}".format(cat.getGroupedDates()))
             file_result.write("\n")
             # proportion storage <-> browser cache
-            perc = (cat.getBrowserCacheSum()/cat.getCounts()[0])*100
-            file_result.write("Anteil Browsercache:\t{:.0f}% >>> (Total: {}, Browsercache: {})".format(perc, cat.getCounts()[0], cat.getBrowserCacheSum()))
+            browser_total = cat.getBrowserCacheTotal()
+            counts_total = cat.getCounts()[0]
+            perc = (browser_total/counts_total)*100
+            perc_str = "{:.0f}%".format(perc)
+            if round(perc, 0) == 0 and perc > 0:
+                perc_str = "<1%"
+            file_result.write("Anteil Browsercache:\t{} >>> (Total: {}, Browsercache: {})".format(perc_str, counts_total, browser_total))
             file_result.write("\n")
             # paths
             file_result.write("Speicherorte:\t")
@@ -782,6 +812,7 @@ column_count = 0
 linecount = 0
 empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
 empty_date_string = "01.01.0001 00:00:00"
+unix_date = datetime.strptime("01.01.1970", "%d.%m.%Y")
 invalid_lines = []
 csv_separator = ""
 
@@ -792,12 +823,9 @@ try:
     with open('config.json') as c:
         data = c.read()
     config = json.loads(data)
-    input_filename = config["input"]["filename"]
     input_encoding = config["input"]["encoding"]
-    input_directory = config["input"]["directory"]
-    result_filename = config["result"]["filename"]
+    result_filename = ""
     result_encoding = config["result"]["encoding"]
-    result_directory = config["result"]["directory"]
     category_legality = {}
     category_sort = {}
     for cat in config["categories"]:
@@ -813,20 +841,25 @@ try:
         if cac["is_thumbcache"] and cac["name"] not in thumbcache_names:
             thumbcache_names.append(cac["name"])
 
-    # ask for names & options
-    input_filename = input("Name des Input-CSV (Default: {} aus {}) > ".format(input_filename, input_directory)) or input_filename
-    result_filename = input("Name der Ergebnisdatei (Default: {}) [.txt, .docx] > ".format(result_filename)) or result_filename
-    result_format = "txt"
-    if ".docx" in result_filename:
+    # ask for informations
+    input_filename = input("Pfad/Name des Input-CSV > ")
+    # remove " & ' from path (prevents error while reading the file)
+    input_filename = input_filename.replace("\"", "")
+    input_filename = input_filename.replace("'", "")
+    
+    default_format = "docx"
+    result_format = input("Format des Ergebnisses (Default: {}) [txt, docx] > ".format(default_format)) or default_format
+    if result_format.strip().lower() == "docx":
         result_format = "docx"
-    if ".txt" in result_filename:
+    if result_format.strip().lower() == "txt":
         result_format = "txt"
     print()
 
-    # combine filenames and directory if needed
-    if os.path.sep not in input_filename:
-        input_filename = input_directory+os.path.sep+input_filename
-    result_filename = result_directory+os.path.sep+result_filename
+    # generate result path/name based on inputfile
+    result_path = os.path.dirname(input_filename)
+    temp_filename = os.path.basename(input_filename)
+    result_basename = os.path.splitext(temp_filename)[0]
+    result_filename = result_path+os.path.sep+result_basename+"."+result_format
 
     # get linecount for progressbar
     linecount = getLinecount(input_filename)
@@ -903,11 +936,8 @@ try:
     # write output-files
     print("Schreibe Ergebnisdatei...")
     name_for_thumbcache = config["other"]["name_for_thumbcache"]
+    name_for_browsercache = config["other"]["name_for_browsercache"]
     
-    # create output directory if not existing
-    if not os.path.isdir(result_directory):
-        os.mkdir(result_directory)
-
     if result_format == "txt":
         writeOutputfileTxt()
     elif result_format == "docx":
