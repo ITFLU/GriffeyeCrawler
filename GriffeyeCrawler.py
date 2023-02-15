@@ -378,10 +378,15 @@ def convertLine(line, linenumber):
             raise LineNotValidException(linenumber)
         field = line[pos_start:pos_end]
         # get range before and after the field
-        first_part = line[:pos_start-2]  # -1 ", -1 
-        second_part = line[pos_end+2:-1]   # +1 ", +1 
-        # add first part to result_list
-        result = result + first_part.split(csv_separator) + [field]
+        second_part = line[pos_end+2:-1]   # +1 = ", +1 = separator, -1 = general
+        if pos_start > 2:
+            first_part = line[:pos_start-2]  # -1 = ", -1 = general 
+            # add first part to result_list
+            result = result + first_part.split(csv_separator) + [field]
+        else:
+            # add field to result_list
+            result = result + [field]
+
         # cut first part of line
         line = second_part
     result = result + second_part.split(csv_separator)
@@ -399,6 +404,7 @@ def analyzeFile(filename):
         counter += 1
         if counter == 0:
             # csv-header...
+            line = line.replace("\ufeff", "")
             detectSeparator(line)
             checkColumns(line)
             global column_count

@@ -1,5 +1,18 @@
 # GriffeyeCrawler - Changelog
 
+## Version 0.5.1 - 15.02.2023
+- Bugfix: Probleme mit dem Unicode-Symbol (\uFEFF) als erstes Zeichen im Header behoben
+- Bugfix: Probleme mit Zeilen, welche Gänsefüsschen und den Separator darin enthalten, korrigiert
+
+## Version 0.5 - 23.09.2022
+- Feature: Häufigste Speicherorte enthalten nun die summierten Browsercache Totale pro Browser ähnlich Thumbcache (#14)
+- Feature: Unix-Timestamp (01.01.1970) ebenfalls als "undefiniert" behandeln (#15)
+- Feature: CSV-Separator wird nun anhand der Headerzeile ermittelt (#16)
+- Feature: Ergebnisdatei wird nun im selben Pfad mit demselben Namen (x.docx) wie die Inputdatei erstellt (#18)
+- Feature: Werte unter 1% Prozent werden neu als "<1%" anstelle des vorherigen "0%" (aufgrund der Rundung) dargestellt.
+- Bugfix: Fehler bei der Bereinigung von Zeilen mit Komma innerhalb von " behoben, wenn Komma Separator ist  (#17)
+- Bugfix: Fehler beim Parsen des Dateipfads durch unterschiedliche Pfadgenerierung bei Drag-n-Drop in verschiedenen Terminals behoben
+
 ## Version 0.4
 - Feature: Thumbcaches werden gesammelt als einen Eintrag in den Top-Pfaden aufgelistet (#12)
 - Bugfix: Output-Verzeichnis wird bei Nichtauffinden automatisch erstellt (#11)
