@@ -13,11 +13,11 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 - Ermittelt sämtliche erwähnten Punkte auch als Total über alle Geräte + die Anzahl der betroffenen Geräte
 - Generiert eine Ergebnisdatei im TXT oder DOCX-Format
 
-(c) 2022, Luzerner Polizei
+(c) 2023, Luzerner Polizei
 Author:  Michael Wicki
-Version: 0.5
+Version: 0.5.1
 """
-version = "v0.5"
+version = "v0.5.1"
 
 import os
 import sys
