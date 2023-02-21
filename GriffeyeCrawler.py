@@ -15,9 +15,9 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
-Version: 0.5.1
+Version: 0.5.2
 """
-version = "v0.5.1"
+version = "v0.5.2"
 
 import os
 import sys
@@ -392,7 +392,12 @@ def convertLine(line, linenumber):
     while line.find('"') > -1:
         # cut out field with separator in it
         pos_start = line.find('"')+1
-        pos_end = line.find('"', pos_start)
+        while True:
+            pos_end = line.find('"', pos_start)
+            if pos_start == pos_end:
+                pos_start += 1
+                continue
+            break
         if pos_start == 0 or pos_end == -1:
             raise LineNotValidException(linenumber)
         field = line[pos_start:pos_end]

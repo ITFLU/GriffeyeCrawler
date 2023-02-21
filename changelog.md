@@ -1,5 +1,8 @@
 # GriffeyeCrawler - Changelog
 
+## Version 0.5.2 - 21.02.2023
+- Bugfix: Probleme mit mehreren aufeinander folgenden Gänsefüsschen (in "Series Names") behoben
+
 ## Version 0.5.1 - 15.02.2023
 - Bugfix: Probleme mit dem Unicode-Symbol (\uFEFF) als erstes Zeichen im Header behoben
 - Bugfix: Probleme mit Zeilen, welche Gänsefüsschen und den Separator darin enthalten, korrigiert
