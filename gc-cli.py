@@ -272,26 +272,33 @@ class Category:
         return sum
 
 
+class PathNotFoundException(Exception):
+    """
+    error in case of a path not found
+    """
+    def __init__(self, path):
+        self.message = f"Path '{path}' not found"
+
 class ColumnNotFoundException(Exception):
     """
     error in case of a column name not found
     """
     def __init__(self, columnname):
-        self.message = "Spalte '{}' wurde nicht gefunden".format(columnname)
+        self.message = f"Column '{columnname}' not found"
+
+class SeparatorNotFoundException(Exception):
+    """
+    error in case of the column separator could not be detected
+    """
+    def __init__(self):
+        self.message = f"Column separator could not be found... Please use option -s"
 
 class LineNotValidException(Exception):
     """
     error in case of a csv-entry with ; in a field without " around it
     """
     def __init__(self, linenumber):
-        self.message = "Zeile '{}' ist ungültig".format(linenumber)
-
-class ResultFormatUnknownException(Exception):
-    """
-    error in case of an undefined output format
-    """
-    def __init__(self, format):
-        self.message = "Ausgabeformat unbekannt ('{}')".format(format)
+        self.message = f"Line '{linenumber}' is not valid"
 
 
 
@@ -299,22 +306,27 @@ def configure_argparse():
     global args
     parser = argparse.ArgumentParser(prog="gc-cli", description="CLI-Version of 'GriffeyeCrawler' - Analyze an exported filelist of Griffeye", formatter_class=argparse.RawTextHelpFormatter)
     parser.version=version
+    parser.add_argument("file", type=str, help="export csv of Griffeye")    
     parser.add_argument("-v", "--version", action="version")
     parser.add_argument("-o", metavar="output", action="store", type=str, 
                         help='''\
 defines the output path/filename
-could be a path or include also a filename
+could be only a path (has to end with a path separator) or can also include a filename
 (default: input directory and input filename with the extension of the format)
-defines the format too based on the file extension''')
+defines the format too based on the file extension and overwrites -f''')
     parser.add_argument("-f", metavar="format", action="store", type=str, 
-                        help='''\
+                        help=f'''\
 defines the output format.
-possible values: docx, json, txt (default: docx)''')
+possible values: {", ".join(map(str,valid_formats))} (default: {default_format})''')
     parser.add_argument("--date", metavar="dates", action="store", type=str, 
                         help='''\
 list of datefields separated by semicolon to get the dates from
 (default: created date;last write time)''')
     parser.add_argument("-n", metavar="number", action="store", type=int, help="number of paths to show per category")
+    parser.add_argument("-s", metavar="separator", action="store", type=str, 
+                        help='''\
+defines the column separator
+(default: automatically detects the separators used by griffeye > comma or semicolon)''')
     parser.add_argument("--nodetails", action="store_true", help="don't generate the pathdetails file")
     args = parser.parse_args()
 
@@ -378,7 +390,7 @@ def detect_separator(header):
     elif header.find(';') > -1:
         csv_separator = ";"
     else:
-        csv_separator = input("CSV-Separator konnte nicht ermittelt werden... Durch welches Zeichen werden die Spalten getrennt?")
+        raise SeparatorNotFoundException()
 
 def check_columns(header):
     """
@@ -473,100 +485,68 @@ def analyze_file(filename):
         except LineNotValidException as exp:
             invalid_lines.append(exp.args[0])
         # update progressbar
-        progress(counter, linecount)
+        progress(counter, line_count)
 
     file_input.close()
     return counter
 
-def write_outputfile_txt():
-    file_result = open(result_filename,"w", encoding=result_encoding)
-    # write results of file-analysis
-    file_result.write("GRIFFEYE-CRAWLER - Ergebnis vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
-    file_result.write("="*43+"\n")
-    file_result.write("Analysierte Datei:     {}\n".format(input_filename))
-    file_result.write("Anzahl Datensätze:     {}\n".format(linecount))
-    file_result.write("\n")
-    counter = 0
-    totallength = len(devices)+1 # + total-table
-
-    # write total results
-    file_result.write("\n{}\n".format(get_titlestring("Total über alle Geräte", "=")))
-    for c in sorted(category_sort.keys()):
-        if category_sort[c] not in total.keys():
-            continue
-        cat = total[category_sort[c]]
-        file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
-        # count & mediatype
-        file_result.write("Menge/Dateityp:\t")
-        file_result.write("{}\n".format(cat.get_counts_string()))
-        # devicecount
-        file_result.write("Anzahl Datenträger:\t{}".format(cat_devcount[category_sort[c]]))
-        file_result.write("\n")
-        if category_sort[c] != "Legale Pornographie":
-            # daterange
-            file_result.write("Erstellung auf Datenträger:\t{}".format(cat.get_date_range()))
-            file_result.write("\n")
-            # timeline
-            file_result.write("Verteilung im Zeitraum:\t{}".format(cat.get_grouped_dates()))
-            file_result.write("\n")
-            # proportion storage <-> browser cache
-            file_result.write("Anteil Browsercache:\t{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])))
-            file_result.write("\n")
-    file_result.write("\n")
-
-    counter += 1
-    # update progressbar
-    progress(counter, totallength)
-
-    # write results of devices
-    for d in devices:
+def process_file():
+    file_input = open(input_filename, "r", encoding=input_encoding)
+    counter = -1
+    for line in file_input:
         counter += 1
-        file_result.write("\n{}\n".format(get_titlestring(d, "=")))
-        for c in sorted(category_sort.keys()):
-            if category_sort[c] not in devices[d].categories:
-                continue
+        # ignore csv-header
+        if counter == 0:
+            continue
 
-            cat = devices[d].get_category(category_sort[c])
-            file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
-            # count & mediatype
-            file_result.write("Menge/Dateityp:\t")
-            file_result.write("{}\n".format(cat.get_counts_string()))
-            if category_sort[c] != "Legale Pornographie":
-                # daterange
-                file_result.write("Erstellung auf Datenträger:\t{}".format(cat.get_date_range()))
-                file_result.write("\n")
-                # timeline
-                file_result.write("Verteilung im Zeitraum:\t{}".format(cat.get_grouped_dates()))
-                file_result.write("\n")
-                # proportion storage <-> browser cache
-                file_result.write("Anteil Browsercache:\t{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])))
-                file_result.write("\n")
-                # paths
-                file_result.write("Häufigste Speicherorte:\t")
-                file_result.write("\n")
-                # show top-paths
-                i = 0
-                # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
-                temppaths = dict(cat.paths)
-                thumbsum = cat.get_thumbcache_sum()
-                if thumbsum > 0:
-                    temppaths[name_for_thumbcache] = thumbsum
-                browser_sums = cat.get_browsercache_sums()
-                for b in browser_sums.keys():
-                    temppaths[name_for_browsercache+" "+b] = browser_sums[b]
-
-                # work with the temporary pathlist incl. the thumbcache-entry
-                for k in sorted(temppaths, key=temppaths.get, reverse=True):
-                    i += 1
-                    if i > config["result"]["number_of_showed_paths"]:
-                        break
-                    file_result.write("- {}\n".format(shorten_path(k)))
-
-        file_result.write("\n")
+        # get data from file
+        try:
+            if line.count(csv_separator) != column_count:
+                column = convert_line(line, counter+1)
+            else:
+                column = line.split(csv_separator)
+            data_category = column[column_index['col_category']]
+            data_path = column[column_index['col_path']]
+            data_type = column[column_index['col_type']]
+            data_date = column[column_index['col_date']]
+            # if date is empty (01.01.0001) try the alternative date
+            if data_date == empty_date_string and column_index['col_alt_date'] > -1:
+                data_date = column[column_index['col_alt_date']]
+            data_device = column[column_index['col_device']]
+            data_hash = column[column_index['col_hash']]
+            # add data to device
+            device = devices[data_device]
+            device.add_file(data_category, data_path, data_type, data_date, data_hash)
+        except LineNotValidException as exp:
+            pass
         # update progressbar
-        progress(counter, totallength)
+        progress(counter, line_count)
+    file_input.close()
+    return counter
 
-    file_result.close()
+def calculate_device_totals():
+    """
+    calculates totals from devices
+    """
+    global device_totals
+    global cat_devcount
+    for d in devices:
+        categories = devices[d].get_categories()
+        for dev_cat in categories.values():
+            # increase/generate devicecount for category
+            if dev_cat.name not in cat_devcount.keys():
+                cat_devcount[dev_cat.name] = 1
+            else:
+                cat_devcount[dev_cat.name] += 1
+            # get/generate total category
+            total_cat = None
+            if dev_cat.name not in device_totals.keys():
+                total_cat = Category(dev_cat.name, dev_cat.min_date)
+                device_totals[dev_cat.name] = total_cat
+            else:
+                total_cat = device_totals[dev_cat.name]
+            # merge device-category to total-category
+            total_cat.merge(dev_cat)
 
 def write_outputfile_docx():
     text_fontname = "Arial"
@@ -578,7 +558,7 @@ def write_outputfile_docx():
     # write results of file-analysis
     document.add_heading("GRIFFEYE-CRAWLER - Ergebnis vom {}".format(datetime.now().strftime("%d.%m.%Y")), 1)
     p = document.add_paragraph()
-    run = p.add_run("Analysierte Datei:\t{}\nAnzahl Datensätze:\t{}".format(input_filename, linecount))
+    run = p.add_run("Analysierte Datei:\t{}\nAnzahl Datensätze:\t{}".format(input_filename, line_count))
     run.font.name = text_fontname
     run.font.size = text_fontsize
     counter = 0
@@ -587,9 +567,9 @@ def write_outputfile_docx():
     # write total results
     document.add_heading("Total über alle Geräte", 2)
     for c in sorted(category_sort.keys()):
-        if category_sort[c] not in total.keys():
+        if category_sort[c] not in device_totals.keys():
             continue
-        cat = total[category_sort[c]]
+        cat = device_totals[category_sort[c]]
         # write table...
         table = document.add_table(rows=1, cols=2, style="Table Grid")
         # format header
@@ -747,31 +727,54 @@ def write_outputfile_docx():
 
         progress(counter, totallength)
         document.save(result_filename)
-    
-def write_pathdetails():
-    """
-    creates the outputfile (txt) with detailed information
-    """
-    name = config["result"]["pathdetails_name"]
-    if not name.endswith(".txt"):
-        name = name+".txt"
-    name = f"{result_basename}_{name}"
-    enc = config["result"]["pathdetails_encoding"]
-    file_result = open(result_path+os.path.sep+name,"w", encoding=enc)
-    # write results of file-analyze
-    file_result.write("GRIFFEYE-CRAWLER - Pfad-Details vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
-    file_result.write("="*47+"\n")
+
+def write_outputfile_json():
+    pass
+
+def write_outputfile_txt():
+    file_result = open(result_filename,"w", encoding=result_encoding)
+    # write results of file-analysis
+    file_result.write("GRIFFEYE-CRAWLER - Ergebnis vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
+    file_result.write("="*43+"\n")
     file_result.write("Analysierte Datei:     {}\n".format(input_filename))
-    file_result.write("Anzahl Datensätze:     {}\n".format(linecount))
+    file_result.write("Anzahl Datensätze:     {}\n".format(line_count))
+    file_result.write("\n")
+    counter = 0
+    totallength = len(devices)+1 # + total-table
+
+    # write total results
+    file_result.write("\n{}\n".format(get_titlestring("Total über alle Geräte", "=")))
+    for c in sorted(category_sort.keys()):
+        if category_sort[c] not in device_totals.keys():
+            continue
+        cat = device_totals[category_sort[c]]
+        file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
+        # count & mediatype
+        file_result.write("Menge/Dateityp:\t")
+        file_result.write("{}\n".format(cat.get_counts_string()))
+        # devicecount
+        file_result.write("Anzahl Datenträger:\t{}".format(cat_devcount[category_sort[c]]))
+        file_result.write("\n")
+        if category_sort[c] != "Legale Pornographie":
+            # daterange
+            file_result.write("Erstellung auf Datenträger:\t{}".format(cat.get_date_range()))
+            file_result.write("\n")
+            # timeline
+            file_result.write("Verteilung im Zeitraum:\t{}".format(cat.get_grouped_dates()))
+            file_result.write("\n")
+            # proportion storage <-> browser cache
+            file_result.write("Anteil Browsercache:\t{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])))
+            file_result.write("\n")
     file_result.write("\n")
 
+    counter += 1
+    # update progressbar
+    progress(counter, totallength)
+
     # write results of devices
-    counter = 0
     for d in devices:
         counter += 1
         file_result.write("\n{}\n".format(get_titlestring(d, "=")))
-        file_result.write("{} Dateien (Legal: {}, Illegal: {})".format(devices[d].get_counts()[0], devices[d].get_counts()[1], devices[d].get_counts()[2]))
-        file_result.write("  >>  {:.2f}% illegal\n".format((devices[d].get_counts()[2]/devices[d].get_counts()[0])*100))
         for c in sorted(category_sort.keys()):
             if category_sort[c] not in devices[d].categories:
                 continue
@@ -781,13 +784,79 @@ def write_pathdetails():
             # count & mediatype
             file_result.write("Menge/Dateityp:\t")
             file_result.write("{}\n".format(cat.get_counts_string()))
+            if category_sort[c] != "Legale Pornographie":
+                # daterange
+                file_result.write("Erstellung auf Datenträger:\t{}".format(cat.get_date_range()))
+                file_result.write("\n")
+                # timeline
+                file_result.write("Verteilung im Zeitraum:\t{}".format(cat.get_grouped_dates()))
+                file_result.write("\n")
+                # proportion storage <-> browser cache
+                file_result.write("Anteil Browsercache:\t{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])))
+                file_result.write("\n")
+                # paths
+                file_result.write("Häufigste Speicherorte:\t")
+                file_result.write("\n")
+                # show top-paths
+                i = 0
+                # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
+                temppaths = dict(cat.paths)
+                thumbsum = cat.get_thumbcache_sum()
+                if thumbsum > 0:
+                    temppaths[name_for_thumbcache] = thumbsum
+                browser_sums = cat.get_browsercache_sums()
+                for b in browser_sums.keys():
+                    temppaths[name_for_browsercache+" "+b] = browser_sums[b]
 
+                # work with the temporary pathlist incl. the thumbcache-entry
+                for k in sorted(temppaths, key=temppaths.get, reverse=True):
+                    i += 1
+                    if i > config["result"]["number_of_showed_paths"]:
+                        break
+                    file_result.write("- {}\n".format(shorten_path(k)))
+
+        file_result.write("\n")
+        # update progressbar
+        progress(counter, totallength)
+
+    file_result.close()
+
+def write_pathdetails():
+    """
+    creates the outputfile (txt) with detailed information
+    """
+    details_name = config["result"]["pathdetails_name"]
+    if not details_name.endswith(".txt"):
+        details_name = details_name+".txt"
+    details_name = f"{get_file_basename(get_output_name(input_filename))}_{details_name}"
+    enc = config["result"]["pathdetails_encoding"]
+    file_result = open(get_output_path(input_filename)+os.path.sep+details_name,"w", encoding=enc)
+    # write results of file-analyze
+    file_result.write(f"GRIFFEYE-CRAWLER - path details from {datetime.now().strftime('%d.%m.%Y')}\n")
+    file_result.write("="*47+"\n")
+    file_result.write(f"Analyzed File:     {input_filename}\n")
+    file_result.write(f"Number of Rows:    {line_count}\n")
+    file_result.write("\n")
+
+    # write results of devices
+    counter = 0
+    for d in devices:
+        counter += 1
+        file_result.write("\n{}\n".format(get_titlestring(d, "=")))
+        file_result.write("{} Files (Legal: {}, Illegal: {})".format(devices[d].get_counts()[0], devices[d].get_counts()[1], devices[d].get_counts()[2]))
+        file_result.write("  >>  {:.2f}% illegal\n".format((devices[d].get_counts()[2]/devices[d].get_counts()[0])*100))
+        for c in sorted(category_sort.keys()):
+            if category_sort[c] not in devices[d].categories:
+                continue
+
+            cat = devices[d].get_category(category_sort[c])
+            file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
+            # count & mediatype
+            file_result.write(f"Quantity/Filetype:\t{cat.get_counts_string()}\n")
             # daterange
-            file_result.write("Erstellung auf Datenträger:\t{}".format(cat.get_date_range()))
-            file_result.write("\n")
+            file_result.write(f"Creation on disk:\t{cat.get_date_range()}\n")
             # timeline
-            file_result.write("Verteilung im Zeitraum:\t{}".format(cat.get_grouped_dates()))
-            file_result.write("\n")
+            file_result.write(f"Distribution in time period:\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
             browser_total = cat.get_browsercache_total()
             counts_total = cat.get_counts()[0]
@@ -795,11 +864,9 @@ def write_pathdetails():
             perc_str = "{:.0f}%".format(perc)
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
-            file_result.write("Anteil Browsercache:\t{} >>> (Total: {}, Browsercache: {})".format(perc_str, counts_total, browser_total))
-            file_result.write("\n")
+            file_result.write(f"Percentage browsercache:\t{perc_str} >>> (Total: {counts_total}, Browsercache: {browser_total})\n")
             # paths
-            file_result.write("Speicherorte:\t")
-            file_result.write("\n")
+            file_result.write("Locations:\t\n")
 
             # show paths
             # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
@@ -825,40 +892,27 @@ def write_pathdetails():
 
     file_result.close()
 
+def read_config():
+    """
+    read configurations (can be overwritten by input options)
+    """
+    global config
+    global input_encoding
+    global result_encoding
+    global category_legality
+    global category_sort
+    global known_cache_paths
+    global browser_names
+    global thumbcache_names
 
-# init
-column_index = {}
-devices = {}
-column_count = 0
-linecount = 0
-empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
-empty_date_string = "01.01.0001 00:00:00"
-unix_date = datetime.strptime("01.01.1970", "%d.%m.%Y")
-invalid_lines = []
-csv_separator = ""
-
-args = None
-configure_argparse()
-
-try:
-    if len(sys.argv)==1:
-        print("Use -h to see the help...")
-
-    # read configurations
     with open('config.json') as c:
         data = c.read()
     config = json.loads(data)
     input_encoding = config["input"]["encoding"]
-    result_filename = ""
     result_encoding = config["result"]["encoding"]
-    category_legality = {}
-    category_sort = {}
     for cat in config["categories"]:
         category_legality[cat["name"]] = cat["legality"]
         category_sort[cat["sort"]] = cat["name"]
-    known_cache_paths = {}
-    browser_names = []
-    thumbcache_names = []
     for cac in config["caches"]:
         known_cache_paths[cac["path"]] = cac["name"]
         if cac["is_browser"] and cac["name"] not in browser_names:
@@ -866,151 +920,164 @@ try:
         if cac["is_thumbcache"] and cac["name"] not in thumbcache_names:
             thumbcache_names.append(cac["name"])
 
-    # # ask for informations
-    # input_filename = input("Pfad/Name des Input-CSV > ")
-    # # remove " & ' from path (prevents error while reading the file)
-    # input_filename = input_filename.replace("\"", "")
-    # input_filename = input_filename.replace("'", "")
+def get_file_basename(input):
+    filename = os.path.basename(input)
+    return os.path.splitext(filename)[0]
+
+def get_output_format():
+    ext = ""
+    if args.o and not args.o.endswith(os.sep):
+        ext = os.path.splittext(args.o)[1]
+    elif args.f:
+        ext = args.f
+    else:
+        ext = default_format
     
-    # default_format = "docx"
-    # result_format = input("Format des Ergebnisses (Default: {}) [txt, docx] > ".format(default_format)) or default_format
-    # if result_format.strip().lower() == "docx":
-    #     result_format = "docx"
-    # if result_format.strip().lower() == "txt":
-    #     result_format = "txt"
-    # print()
-
-    # # generate result path/name based on inputfile
-    # result_path = os.path.dirname(input_filename)
-    # temp_filename = os.path.basename(input_filename)
-    # result_basename = os.path.splitext(temp_filename)[0]
-    # result_filename = result_path+os.path.sep+result_basename+"."+result_format
-
-    # # get linecount for progressbar
-    # linecount = get_linecount(input_filename)
-
-    # # analyze file
-    # print("Analysiere Datei '{}'...".format(input_filename))
-    # analyze_file(input_filename)
-    # if len(invalid_lines) > 0:
-    #     print()
-    #     print("  !!! Ungültige Zeilen in Input-CSV entdeckt und in Verarbeitung ignoriert")
-    #     print("  !!! Zeilen: ", end="")
-    #     for l in invalid_lines:
-    #         print(l, end="  ")
-    #     print()
-    # print()
-
-    # # process data
-    # print("Verarbeite Datensätze...")
-    # file_input = open(input_filename, "r", encoding=input_encoding)
-    # result = ""
-    # counter = -1
-    # for line in file_input:
-    #     counter += 1
-    #     # ignore csv-header
-    #     if counter == 0:
-    #         continue
-
-    #     # get data from file
-    #     try:
-    #         if line.count(csv_separator) != column_count:
-    #             column = convert_line(line, counter+1)
-    #         else:
-    #             column = line.split(csv_separator)
-    #         data_category = column[column_index['col_category']]
-    #         data_path = column[column_index['col_path']]
-    #         data_type = column[column_index['col_type']]
-    #         data_date = column[column_index['col_date']]
-    #         # if date is empty (01.01.0001) try the alternative date
-    #         if data_date == empty_date_string and column_index['col_alt_date'] > -1:
-    #             data_date = column[column_index['col_alt_date']]
-    #         data_device = column[column_index['col_device']]
-    #         data_hash = column[column_index['col_hash']]
-    #         # add data to device
-    #         device = devices[data_device]
-    #         device.add_file(data_category, data_path, data_type, data_date, data_hash)
-    #     except LineNotValidException as exp:
-    #         pass
-    #     # update progressbar
-    #     progress(counter, linecount)
-    # file_input.close()
-
-    # # generate total from devices
-    # total = {}
-    # cat_devcount = {}
-    # for d in devices:
-    #     categories = devices[d].get_categories()
-    #     for dev_cat in categories.values():
-    #         # increase/generate devicecount for category
-    #         if dev_cat.name not in cat_devcount.keys():
-    #             cat_devcount[dev_cat.name] = 1
-    #         else:
-    #             cat_devcount[dev_cat.name] += 1
-    #         # get/generate total category
-    #         total_cat = None
-    #         if dev_cat.name not in total.keys():
-    #             total_cat = Category(dev_cat.name, dev_cat.min_date)
-    #             total[dev_cat.name] = total_cat
-    #         else:
-    #             total_cat = total[dev_cat.name]
-    #         # merge device-category to total-category
-    #         total_cat.merge(dev_cat)
-    # print()
-
-    # # write output-files
-    # print("Schreibe Ergebnisdatei...")
-    # name_for_thumbcache = config["other"]["name_for_thumbcache"]
-    # name_for_browsercache = config["other"]["name_for_browsercache"]
+    # check extension
+    if ext in valid_formats:
+        return ext
     
-    # if result_format == "txt":
-    #     write_outputfile_txt()
-    # elif result_format == "docx":
-    #     write_outputfile_docx()
-    # else:
-    #     # actually not possible...
-    #     raise ResultFormatUnknownException(result_format)
-    # if config["result"]["generate_pathdetails"]:
-    #     write_pathdetails()
+    print(f"Output format '{ext}' not found! Default format is used...")
+    return default_format
 
-    # print()
-    # print()
-    # print("ERLEDIGT! {} Datensätze verarbeitet (siehe '{}')".format(counter, result_filename))
+def get_output_name(inputname):
+    if args.o and not args.o.endswith(os.path):
+        return f"{get_file_basename(args.o)}.{get_output_format}"
+    return f"{get_file_basename(inputname)}.{get_output_format}"
 
+def get_output_path(inputname):
+    path = ""
+    if args.o:
+        if args.o.endswith(os.sep):
+            path = args.o
+        else:
+            path = os.path.dirname(args.o)
+    else:
+        path = os.path.dirname(inputname)
+
+    # check for existance
+    if not os.path.exists(path):
+        raise PathNotFoundException(path)
+    return path
+
+
+
+# init
+column_index = {}
+devices = {}
+device_totals = {}
+cat_devcount = {}
+invalid_lines = []
+csv_separator = ""
+column_count = 0
+line_count = 0
+
+default_format = "docx"
+valid_formats = ["docx", "json", "txt"]
+
+empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
+empty_date_string = "01.01.0001 00:00:00"
+unix_date = datetime.strptime("01.01.1970", "%d.%m.%Y")
+
+# init configs
+config = {}
+input_encoding = ""
+result_filename = ""
+result_encoding = ""
+category_legality = {}
+category_sort = {}
+known_cache_paths = {}
+browser_names = []
+thumbcache_names = []
+
+# init argparse
+args = None
+configure_argparse()
+
+try:
+    read_config()
+    input_filename = args.file
+    # remove " & ' from path (prevents error while reading the file)
+    input_filename = input_filename.replace("\"", "")
+    input_filename = input_filename.replace("'", "")
+
+    result_format = get_output_format()
+    result_filename = os.path.join(get_output_path(input_filename), get_output_name(input_filename))
+
+    # get linecount for progressbar
+    line_count = get_linecount(input_filename)
+
+    # analyze file
+    print(f"Analyzing file '{input_filename}'...")
+    analyze_file(input_filename)
+    if len(invalid_lines) > 0:
+        print()
+        print("  !!! Invalid rows detected in CSV and ignored in processing")
+        print("  !!! Rows: ", end="")
+        for l in invalid_lines:
+            print(l, end="  ")
+        print()
+    print()
+
+    # process data
+    print("Processing records...")
+    processed = process_file()
+    calculate_device_totals()
+    print()
+
+    # write output-files
+    print("Write result files...")
+    name_for_thumbcache = config["other"]["name_for_thumbcache"]
+    name_for_browsercache = config["other"]["name_for_browsercache"]
+    if result_format == "txt":
+        write_outputfile_txt()
+    elif result_format == "json":
+        write_outputfile_json()
+    elif result_format == "docx":
+        write_outputfile_docx()
+
+    if config["result"]["generate_pathdetails"] and not args.nodetails:
+        write_pathdetails()
+
+    print()
+    print()
+    print(f"DONE! {processed} record processed (check results in '{result_filename}')")
+
+except PathNotFoundException as exp:
+    print()
+    print("[!] Processing aborted!")
+    print(">", exp.message)
 except ColumnNotFoundException as exp:
     print()
-    print("ERROR: Verarbeitung abgebrochen!")
+    print("[!] Processing aborted!")
     print(">", exp.message)
-except ResultFormatUnknownException as exp:
+except SeparatorNotFoundException as exp:
     print()
-    print("ERROR: Verarbeitung abgebrochen!")
+    print("[!] Processing aborted!")
     print(">", exp.message)
 except FileNotFoundError as exp:
     print()
-    print("ERROR: Verarbeitung abgebrochen!")
-    print("> Datei '{}' nicht gefunden".format(exp.filename))
+    print("[!] Processing aborted!")
+    print(f"> File '{exp.filename}' not found")
 except KeyError as exp:
     print()
-    print("ERROR: Verarbeitung abgebrochen!")
-    print("> Konfiguration '{}' nicht gefunden".format(exp))
+    print("[!] Processing aborted!")
+    print(f"> Configuration '{exp}' not found")
 except UnicodeDecodeError as exp:
     print()
-    print("ERROR: Verarbeitung abgebrochen!")
+    print("[!] Processing aborted!")
     if exp.args[0] == "utf-8":
-        print("Datei liegt nicht im UTF-8-Format vor. Config anpassen oder Datei umwandeln...")
+        print("File is not in UTF-8 format. Please adjust configuration or convert the file...")
     else:
-        print("Datei liegt in einem unbekannten Format vor")
+        print("File is in an unknown format")
 except UnicodeError as exp:
     print()
-    print("ERROR: Verarbeitung abgebrochen!")
+    print("[!] Processing aborted!")
     if "UTF-16" in exp.args[0]:
-        print("Datei liegt nicht im UTF-16-Format vor. Config anpassen oder Datei umwandeln...")
+        print("File is not in UTF-16 format. Please adjust configuration or convert the file...")
     else:
-        print("Datei liegt in einem unbekannten Format vor")
+        print("File is in an unknown format")
 except Exception as exp:
     print()
-    print("ERROR: Verarbeitung abgebrochen!")
+    print("[!] Processing aborted!")
     traceback.print_exc()
-
-# print()
-# input()
