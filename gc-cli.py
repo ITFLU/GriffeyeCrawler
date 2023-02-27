@@ -320,8 +320,8 @@ defines the output format.
 possible values: {", ".join(map(str,valid_formats))} (default: {default_format})''')
     parser.add_argument("--date", metavar="dates", action="store", type=str, 
                         help='''\
-list of datefields separated by semicolon to get the dates from
-(default: created date;last write time)''')
+list of datefields separated by comma to get the dates from
+(default: created date,last write time)''')
     parser.add_argument("-n", metavar="number", action="store", type=int, help="number of paths to show per category")
     parser.add_argument("-s", metavar="separator", action="store", type=str, 
                         help='''\
@@ -392,12 +392,26 @@ def detect_separator(header):
     else:
         raise SeparatorNotFoundException()
 
+def get_date_field(data):
+    for i in column_index.keys():
+        if not i.startswith("col_date"):
+            continue
+
+        # if field is empty () or date is empty (01.01.0001) try the next date
+        if len(data[column_index[i]].strip()) > 0 and data[column_index[i]] != empty_date_string:
+            return data[column_index[i]]
+    return empty_date_string
+
 def check_columns(header):
     """
     check for needed columns & fill columnindex-dictionary for column access with columnname
     """
     cols = header[:-1].split(csv_separator)
     for c in config["needed_columns"]:
+        # ignore datefield > checked with datefields_list
+        if c["key"]=="col_date":
+            continue
+
         if c["columnname"] in cols:
             # column in csv found
             column_index[c["key"]] = cols.index(c["columnname"])
@@ -408,12 +422,14 @@ def check_columns(header):
             # column and 'alt' in csv not found
             raise ColumnNotFoundException(c["columnname"])
 
-    # check for alternative date for the case of empty date (01.01.0001) in mobiles
-    alt_date = config["other"]["alternative_date_column"]
-    alt_key = config["other"]["alternative_date_key"]
-    column_index[alt_key] = -1
-    if alt_date in cols:
-        column_index[alt_key] = cols.index(alt_date)
+    # check for datefields
+    counter = 0
+    for d in datefields_list:
+        if d in cols:
+            column_index["col_date"+str(counter)] = cols.index(d)
+            counter+=1
+        else:
+            raise ColumnNotFoundException(d)
 
 def convert_line(line, linenumber):
     result = []
@@ -457,7 +473,8 @@ def analyze_file(filename):
         if counter == 0:
             # csv-header...
             line = line.replace("\ufeff", "")
-            detect_separator(line)
+            if not args.s:
+                detect_separator(line)
             check_columns(line)
             global column_count
             column_count = line.count(csv_separator)
@@ -471,10 +488,7 @@ def analyze_file(filename):
             else:
                 data = line.split(csv_separator)
             data_category = data[column_index['col_category']]
-            data_date = data[column_index['col_date']]
-            # if date is empty (01.01.0001) try the alternative date
-            if data_date == empty_date_string and column_index['col_alt_date'] > -1:
-                data_date = data[column_index['col_alt_date']]
+            data_date = get_date_field(data)
             current_date = datetime.strptime(data_date[0:10], "%d.%m.%Y")
             data_device = data[column_index['col_device']]
             # check for device or create it when needed
@@ -508,10 +522,7 @@ def process_file():
             data_category = column[column_index['col_category']]
             data_path = column[column_index['col_path']]
             data_type = column[column_index['col_type']]
-            data_date = column[column_index['col_date']]
-            # if date is empty (01.01.0001) try the alternative date
-            if data_date == empty_date_string and column_index['col_alt_date'] > -1:
-                data_date = column[column_index['col_alt_date']]
+            data_date = get_date_field(column)
             data_device = column[column_index['col_device']]
             data_hash = column[column_index['col_hash']]
             # add data to device
@@ -556,16 +567,16 @@ def write_outputfile_docx():
 
     document = Document()
     # write results of file-analysis
-    document.add_heading("GRIFFEYE-CRAWLER - Ergebnis vom {}".format(datetime.now().strftime("%d.%m.%Y")), 1)
+    document.add_heading(f"GRIFFEYE-CRAWLER - Results from {datetime.now().strftime('%d.%m.%Y')}", 1)
     p = document.add_paragraph()
-    run = p.add_run("Analysierte Datei:\t{}\nAnzahl Datensätze:\t{}".format(input_filename, line_count))
+    run = p.add_run(f"Analyzed File:\t{input_filename}\nNumber of rows:\t{line_count}")
     run.font.name = text_fontname
     run.font.size = text_fontsize
     counter = 0
     totallength = len(devices)+1 # + total-table
 
     # write total results
-    document.add_heading("Total über alle Geräte", 2)
+    document.add_heading("Total over all devices", 2)
     for c in sorted(category_sort.keys()):
         if category_sort[c] not in device_totals.keys():
             continue
@@ -576,10 +587,10 @@ def write_outputfile_docx():
         hdr_cells = table.rows[0].cells
         # cell merging
         hdr_cells[0].text = cat.name
-        datentr = "Datenträger"
+        datentr = "Disk"
         if cat_devcount[category_sort[c]] > 1:
-            datentr = "Datenträgern"
-        hdr_cells[1].text = "{} auf {} {}".format(cat.get_counts_string(), cat_devcount[category_sort[c]], datentr)
+            datentr = "Disks"
+        hdr_cells[1].text = f"{cat.get_counts_string()} on {cat_devcount[category_sort[c]]} {datentr}"
         # background color
         cellshade = OxmlElement("w:shd")
         cellshade.set(qn("w:fill"), "#CCCCCC")
@@ -606,12 +617,12 @@ def write_outputfile_docx():
         if category_sort[c] != "Legale Pornographie":
             # timeline
             row_cells = table.add_row().cells
-            row_cells[0].text = "Verteilung im Zeitraum:"
-            row_cells[1].text = "{}".format(cat.get_grouped_dates())
+            row_cells[0].text = "istribution in time period:"
+            row_cells[1].text = f"{cat.get_grouped_dates()}"
             # proportion storage <-> browser cache
             row_cells = table.add_row().cells
-            row_cells[0].text = "Anteil Browsercache:"
-            row_cells[1].text = "{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]))
+            row_cells[0].text = "Percentage Browsercache:"
+            row_cells[1].text = f"{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}"
         
         # format table
         for row in table.rows[1:]:
@@ -633,7 +644,6 @@ def write_outputfile_docx():
     counter += 1
     # update progressbar
     progress(counter, totallength)
-
 
     # write results of devices
     for d in devices:
@@ -668,24 +678,24 @@ def write_outputfile_docx():
             # fill data...
             # count & mediatype
             row_cells = table.add_row().cells
-            row_cells[0].text = "Menge/Dateityp:"
+            row_cells[0].text = "Quantity/Filetype:"
             row_cells[1].text = cat.get_counts_string()
             if category_sort[c] != "Legale Pornographie":
                 # daterange
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Erstellung auf Datenträger:"
-                row_cells[1].text = "{}".format(cat.get_date_range())
+                row_cells[0].text = "Creation on disk:"
+                row_cells[1].text = f"{cat.get_date_range()}"
                 # timeline
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Verteilung im Zeitraum:"
-                row_cells[1].text = "{}".format(cat.get_grouped_dates())
+                row_cells[0].text = "istribution in time period:"
+                row_cells[1].text = f"{cat.get_grouped_dates()}"
                 # proportion storage <-> browser cache
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Anteil Browsercache:"
-                row_cells[1].text = "{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]))
+                row_cells[0].text = "Percentage Browsercache:"
+                row_cells[1].text = f"{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}"
                 # paths
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Häufigste Speicherorte:"
+                row_cells[0].text = "Most common locations:"
                 # show top-paths
                 rows = ""
                 i = 0
@@ -701,11 +711,11 @@ def write_outputfile_docx():
                 # work with the temporary pathlist incl. the thumbcache-entry
                 for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
-                    if i > config["result"]["number_of_showed_paths"]:
+                    if i > number_of_showed_paths:
                         break
                     if i > 1:
                         rows += "\n"
-                    rows += "- {}".format(shorten_path(k))
+                    rows += f"- {shorten_path(k)}"
                 row_cells[1].text = rows
             
             # format table
@@ -734,37 +744,32 @@ def write_outputfile_json():
 def write_outputfile_txt():
     file_result = open(result_filename,"w", encoding=result_encoding)
     # write results of file-analysis
-    file_result.write("GRIFFEYE-CRAWLER - Ergebnis vom {}\n".format(datetime.now().strftime("%d.%m.%Y")))
+    file_result.write(f"GRIFFEYE-CRAWLER - results from {datetime.now().strftime('%d.%m.%Y')}\n")
     file_result.write("="*43+"\n")
-    file_result.write("Analysierte Datei:     {}\n".format(input_filename))
-    file_result.write("Anzahl Datensätze:     {}\n".format(line_count))
+    file_result.write(f"Analyzed File:\t{input_filename}\n")
+    file_result.write(f"Number of Rows:\t{line_count}\n")
     file_result.write("\n")
     counter = 0
     totallength = len(devices)+1 # + total-table
 
     # write total results
-    file_result.write("\n{}\n".format(get_titlestring("Total über alle Geräte", "=")))
+    file_result.write("\n{}\n".format(get_titlestring("Total over all devices", "=")))
     for c in sorted(category_sort.keys()):
         if category_sort[c] not in device_totals.keys():
             continue
         cat = device_totals[category_sort[c]]
         file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
         # count & mediatype
-        file_result.write("Menge/Dateityp:\t")
-        file_result.write("{}\n".format(cat.get_counts_string()))
+        file_result.write(f"Quantity/Filetype:\t\t\t\t{cat.get_counts_string()}\n")
         # devicecount
-        file_result.write("Anzahl Datenträger:\t{}".format(cat_devcount[category_sort[c]]))
-        file_result.write("\n")
+        file_result.write(f"Number of devices:\t\t\t\t{cat_devcount[category_sort[c]]}\n")
         if category_sort[c] != "Legale Pornographie":
             # daterange
-            file_result.write("Erstellung auf Datenträger:\t{}".format(cat.get_date_range()))
-            file_result.write("\n")
+            file_result.write(f"Creation on disk:\t\t\t\t{cat.get_date_range()}\n")
             # timeline
-            file_result.write("Verteilung im Zeitraum:\t{}".format(cat.get_grouped_dates()))
-            file_result.write("\n")
+            file_result.write(f"Distribution in time period:\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
-            file_result.write("Anteil Browsercache:\t{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])))
-            file_result.write("\n")
+            file_result.write(f"Percentage Browsercache:\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
     file_result.write("\n")
 
     counter += 1
@@ -782,21 +787,16 @@ def write_outputfile_txt():
             cat = devices[d].get_category(category_sort[c])
             file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
             # count & mediatype
-            file_result.write("Menge/Dateityp:\t")
-            file_result.write("{}\n".format(cat.get_counts_string()))
+            file_result.write(f"Menge/Dateityp:\t\t\t\t{cat.get_counts_string()}\n")
             if category_sort[c] != "Legale Pornographie":
                 # daterange
-                file_result.write("Erstellung auf Datenträger:\t{}".format(cat.get_date_range()))
-                file_result.write("\n")
+                file_result.write(f"Creation on disk:\t\t\t\t{cat.get_date_range()}\n")
                 # timeline
-                file_result.write("Verteilung im Zeitraum:\t{}".format(cat.get_grouped_dates()))
-                file_result.write("\n")
+                file_result.write(f"Distribution in time period:\t{cat.get_grouped_dates()}\n")
                 # proportion storage <-> browser cache
-                file_result.write("Anteil Browsercache:\t{}".format(get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])))
-                file_result.write("\n")
+                file_result.write(f"Percentage Browsercache:\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
                 # paths
-                file_result.write("Häufigste Speicherorte:\t")
-                file_result.write("\n")
+                file_result.write("Most common Locations:\n")
                 # show top-paths
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
@@ -811,9 +811,9 @@ def write_outputfile_txt():
                 # work with the temporary pathlist incl. the thumbcache-entry
                 for k in sorted(temppaths, key=temppaths.get, reverse=True):
                     i += 1
-                    if i > config["result"]["number_of_showed_paths"]:
+                    if i > number_of_showed_paths:
                         break
-                    file_result.write("- {}\n".format(shorten_path(k)))
+                    file_result.write(f"- {shorten_path(k)}\n")
 
         file_result.write("\n")
         # update progressbar
@@ -830,12 +830,12 @@ def write_pathdetails():
         details_name = details_name+".txt"
     details_name = f"{get_file_basename(get_output_name(input_filename))}_{details_name}"
     enc = config["result"]["pathdetails_encoding"]
-    file_result = open(get_output_path(input_filename)+os.path.sep+details_name,"w", encoding=enc)
+    file_result = open(get_output_path(input_filename)+details_name,"w", encoding=enc)
     # write results of file-analyze
     file_result.write(f"GRIFFEYE-CRAWLER - path details from {datetime.now().strftime('%d.%m.%Y')}\n")
     file_result.write("="*47+"\n")
-    file_result.write(f"Analyzed File:     {input_filename}\n")
-    file_result.write(f"Number of Rows:    {line_count}\n")
+    file_result.write(f"Analyzed File:\t{input_filename}\n")
+    file_result.write(f"Number of Rows:\t{line_count}\n")
     file_result.write("\n")
 
     # write results of devices
@@ -852,9 +852,9 @@ def write_pathdetails():
             cat = devices[d].get_category(category_sort[c])
             file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
             # count & mediatype
-            file_result.write(f"Quantity/Filetype:\t{cat.get_counts_string()}\n")
+            file_result.write(f"Quantity/Filetype:\t\t\t\t{cat.get_counts_string()}\n")
             # daterange
-            file_result.write(f"Creation on disk:\t{cat.get_date_range()}\n")
+            file_result.write(f"Creation on disk:\t\t\t\t{cat.get_date_range()}\n")
             # timeline
             file_result.write(f"Distribution in time period:\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
@@ -864,9 +864,9 @@ def write_pathdetails():
             perc_str = "{:.0f}%".format(perc)
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
-            file_result.write(f"Percentage browsercache:\t{perc_str} >>> (Total: {counts_total}, Browsercache: {browser_total})\n")
+            file_result.write(f"Percentage browsercache:\t\t{perc_str} >>> (Total: {counts_total}, Browsercache: {browser_total})\n")
             # paths
-            file_result.write("Locations:\t\n")
+            file_result.write("Locations:\n")
 
             # show paths
             # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
@@ -904,6 +904,7 @@ def read_config():
     global known_cache_paths
     global browser_names
     global thumbcache_names
+    global number_of_showed_paths
 
     with open('config.json') as c:
         data = c.read()
@@ -919,6 +920,21 @@ def read_config():
             browser_names.append(cac["name"])
         if cac["is_thumbcache"] and cac["name"] not in thumbcache_names:
             thumbcache_names.append(cac["name"])
+    number_of_showed_paths = config["result"]["number_of_showed_paths"]
+
+def generate_datefields_list():
+    global datefields_list
+    if args.date:
+        datefields_list = args.date.split(",")
+            
+    if not datefields_list:
+        if args.date:
+            print(f"No date definitions found! Default is used...")
+        for c in config["needed_columns"]:
+            if c["key"]=="col_date":
+                datefields_list.append(c["columnname"])
+                break
+        datefields_list.append(config["other"]["alternative_date_column"])
 
 def get_file_basename(input):
     filename = os.path.basename(input)
@@ -942,8 +958,8 @@ def get_output_format():
 
 def get_output_name(inputname):
     if args.o and not args.o.endswith(os.path):
-        return f"{get_file_basename(args.o)}.{get_output_format}"
-    return f"{get_file_basename(inputname)}.{get_output_format}"
+        return f"{get_file_basename(args.o)}.{get_output_format()}"
+    return f"{get_file_basename(inputname)}.{get_output_format()}"
 
 def get_output_path(inputname):
     path = ""
@@ -956,8 +972,10 @@ def get_output_path(inputname):
         path = os.path.dirname(inputname)
 
     # check for existance
-    if not os.path.exists(path):
+    if path != "" and not os.path.exists(path):
         raise PathNotFoundException(path)
+    if path != "":
+        path = path+os.sep
     return path
 
 
@@ -968,6 +986,7 @@ devices = {}
 device_totals = {}
 cat_devcount = {}
 invalid_lines = []
+datefields_list = []
 csv_separator = ""
 column_count = 0
 line_count = 0
@@ -989,6 +1008,7 @@ category_sort = {}
 known_cache_paths = {}
 browser_names = []
 thumbcache_names = []
+number_of_showed_paths = 0
 
 # init argparse
 args = None
@@ -1003,9 +1023,14 @@ try:
 
     result_format = get_output_format()
     result_filename = os.path.join(get_output_path(input_filename), get_output_name(input_filename))
-
     # get linecount for progressbar
     line_count = get_linecount(input_filename)
+    # set separator from options (deactivates automatic detection)
+    csv_separator = args.s if args.s else csv_separator
+    # set number of showed paths from options
+    number_of_showed_paths = args.n if args.n else number_of_showed_paths
+    # set list of datefields
+    generate_datefields_list()
 
     # analyze file
     print(f"Analyzing file '{input_filename}'...")
