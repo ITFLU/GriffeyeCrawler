@@ -342,15 +342,19 @@ language for output documents in locale format (e.g. en_US, de_DE)
 if locale is not found, only the first part of the locale is checked
 languages are based on labels.json
 (default from config.json)''')
-    parser.add_argument("--date", metavar="dates", action="store", type=str, 
-                        help='''\
-list of datefields separated by comma to get the dates from
-(default: created date,last write time)''')
     parser.add_argument("-n", metavar="number", action="store", type=int, help="number of paths to show per category")
     parser.add_argument("-s", metavar="separator", action="store", type=str, 
                         help='''\
 defines the column separator
 (default: automatically detects the separators used by griffeye > comma or semicolon)''')
+    parser.add_argument("--date", metavar="dates", action="store", type=str, 
+                        help='''\
+list of datefields separated by comma to get the dates from
+(default: created date,last write time)''')
+    parser.add_argument("--exclude", metavar="path", action="store", type=str, 
+                        help='''\
+list of textparts to be excluded from the filepath separated by comma
+(default: created date,last write time)''')
     parser.add_argument("--nodetails", action="store_true", help="don't generate the pathdetails file")
     args = parser.parse_args()
 
@@ -534,6 +538,7 @@ def process_file():
     file_input = open(input_filename, "r", encoding=input_encoding)
     counter = -1
     for line in file_input:
+        exclude = False
         counter += 1
         # ignore csv-header
         if counter == 0:
@@ -547,6 +552,12 @@ def process_file():
                 column = line.split(csv_separator)
             data_category = column[column_index['col_category']]
             data_path = column[column_index['col_path']]
+            for e in exclude_list:
+                if e.lower() in data_path.lower():
+                    exclude = True
+                    break
+            if exclude:
+                continue
             data_type = column[column_index['col_type']]
             data_date = get_date_field(column)
             data_device = column[column_index['col_device']]
@@ -595,7 +606,7 @@ def write_outputfile_docx():
     # write results of file-analysis
     document.add_heading(f"GRIFFEYE-CRAWLER - {labels['result_from']} {datetime.now().strftime('%d.%m.%Y')}", 1)
     p = document.add_paragraph()
-    run = p.add_run(f"{labels['analyzed_file']}\t{input_filename}\n{labels['number_of_rows']}\t{line_count}")
+    run = p.add_run(f"{labels['analyzed_file']}\t{input_filename}\n{labels['number_of_rows']}\t{line_count}\n{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
     run.font.name = text_fontname
     run.font.size = text_fontsize
     counter = 0
@@ -769,7 +780,9 @@ def write_outputfile_json():
         "meta": { 
             "processing_date": datetime.now().strftime('%d.%m.%Y'),
             "analyzed_file": input_filename,
-            "row_count": line_count
+            "row_count": line_count,
+            "defined_datefields": ', '.join(datefields_list),
+            "defined_excludes": ', '.join(exclude_list)
         }
     }
 
@@ -784,6 +797,7 @@ def write_outputfile_json():
         cat = cat_totals[category_sort[c]]
         t_counts = cat.get_counts()
         u_counts = cat.get_unique_counts()
+        dates = cat.get_date_range()
         json_obj["total_over_all_devices"].append({
                 "category": cat.name,
                 "count_summary": cat.get_counts_string(),
@@ -793,8 +807,8 @@ def write_outputfile_json():
                 "video_count_unique": u_counts[2],
                 "device_count": cat_devcount[cat.name],
                 "creation_summary": cat.get_date_range_string(),
-                "creation_startdate": cat.get_date_range_string(),
-                "creation_enddate": cat.get_date_range_string(),
+                "creation_startdate": dates[0],
+                "creation_enddate": dates[1],
                 "distribution_over_time": cat.get_grouped_dates(),
                 "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])
             })
@@ -866,6 +880,8 @@ def write_outputfile_txt():
     file_result.write("="*43+"\n")
     file_result.write(f"{labels['analyzed_file']}\t{input_filename}\n")
     file_result.write(f"{labels['number_of_rows']}\t{line_count}\n")
+    file_result.write(f"{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n")
+    file_result.write(f"{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
     file_result.write("\n")
     counter = 0
     totallength = len(devices)+1 # + total-table
@@ -954,6 +970,8 @@ def write_pathdetails():
     file_result.write("="*47+"\n")
     file_result.write(f"{labels['analyzed_file']}:\t{input_filename}\n")
     file_result.write(f"{labels['number_of_rows']}:\t{line_count}\n")
+    file_result.write(f"{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n")
+    file_result.write(f"{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
     file_result.write("\n")
 
     # write results of devices
@@ -1093,6 +1111,11 @@ def generate_datefields_list():
                 break
         datefields_list.append(config["other"]["alternative_date_column"])
 
+def generate_exclude_list():
+    global exclude_list
+    if args.exclude:
+        exclude_list = args.exclude.split(",")
+
 def get_file_basename(input):
     filename = os.path.basename(input)
     return os.path.splitext(filename)[0]
@@ -1144,6 +1167,7 @@ cat_totals = {}
 cat_devcount = {}
 invalid_lines = []
 datefields_list = []
+exclude_list = []
 csv_separator = ""
 column_count = 0
 line_count = 0
@@ -1194,6 +1218,8 @@ try:
     read_labels()
     # set list of datefields
     generate_datefields_list()
+    # set list of excludes
+    generate_exclude_list()
 
     # analyze file
     print(f"Analyzing file '{input_filename}'...")
