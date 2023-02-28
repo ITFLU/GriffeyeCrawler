@@ -180,8 +180,18 @@ class Category:
             self.date_groups[year] += 1 # increase
 
     def get_date_range(self):
+        min = self.min_date.strftime("%d.%m.%Y")
+        max = self.max_date.strftime("%d.%m.%Y")
+        if min == empty_date:
+            min = labels['undefined']
+        if max == empty_date:
+            max = labels['undefined']
+        return (min, max)
+        # return self.min_date.strftime("%d.%m.%Y")+" - "+self.max_date.strftime("%d.%m.%Y")
+    
+    def get_date_range_string(self):
         if self.min_date == empty_date or self.max_date == empty_date:
-            return "undefiniert"
+            return labels['undefined']
         return self.min_date.strftime("%d.%m.%Y")+" - "+self.max_date.strftime("%d.%m.%Y")
 
     def get_date_range_days(self):
@@ -212,24 +222,24 @@ class Category:
         result = ""
         # pictures
         if self.pic_count > 0:
-            result += "{} ".format(self.pic_count)
+            result += f"{self.pic_count} "
             if self.pic_count > 1:
-                result += "Bilder"
+                result += labels['pictures']
             else:
-                result += "Bild"
+                result += labels['picture']
             # binary unique
-            result += " ({})".format(len(self.pic_hashes))
+            result += f" ({len(self.pic_hashes)})"
             if self.vid_count > 0:
                 result += ", "
         # videos
         if self.vid_count > 0:
-            result += "{} ".format(self.vid_count)
+            result += f"{self.vid_count} "
             if self.vid_count > 1:
-                result += "Videos"
+                result += labels['videos']
             else:
-                result += "Video"
+                result += labels['video']
             # binary unique
-            result += " ({})".format(len(self.vid_hashes))
+            result += f" ({len(self.vid_hashes)})"
         return result
 
     def get_grouped_dates(self):
@@ -241,7 +251,7 @@ class Category:
             # calculate percentage of total files
             perc = (self.date_groups[year]/self.tot_count)*100
             if year == 9999:
-                year = "undef."
+                year = labels['undefined_short']
             perc_str = "{:.0f}%".format(perc)
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
@@ -700,7 +710,7 @@ def write_outputfile_docx():
                 # daterange
                 row_cells = table.add_row().cells
                 row_cells[0].text = f"{labels['creation_on_disk']}"
-                row_cells[1].text = f"{cat.get_date_range()}"
+                row_cells[1].text = f"{cat.get_date_range_string()}"
                 # timeline
                 row_cells = table.add_row().cells
                 row_cells[0].text = f"{labels['distribution_in_time_period']}"
@@ -755,7 +765,99 @@ def write_outputfile_docx():
         document.save(result_filename)
 
 def write_outputfile_json():
-    pass
+    json_obj = { 
+        "meta": { 
+            "processing_date": datetime.now().strftime('%d.%m.%Y'),
+            "analyzed_file": input_filename,
+            "row_count": line_count
+        }
+    }
+
+    counter = 0
+    totallength = len(devices)+1 # + total-table
+
+    # write total results
+    json_obj["total_over_all_devices"] = []
+    for c in sorted(category_sort.keys()):
+        if category_sort[c] not in cat_totals.keys():
+            continue
+        cat = cat_totals[category_sort[c]]
+        t_counts = cat.get_counts()
+        u_counts = cat.get_unique_counts()
+        json_obj["total_over_all_devices"].append({
+                "category": cat.name,
+                "count_summary": cat.get_counts_string(),
+                "picture_count": t_counts[1],
+                "picture_count_unique": u_counts[1],
+                "video_count": t_counts[2],
+                "video_count_unique": u_counts[2],
+                "device_count": cat_devcount[cat.name],
+                "creation_summary": cat.get_date_range_string(),
+                "creation_startdate": cat.get_date_range_string(),
+                "creation_enddate": cat.get_date_range_string(),
+                "distribution_over_time": cat.get_grouped_dates(),
+                "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])
+            })
+    # update progressbar with total
+    counter += 1
+    progress(counter, totallength)
+
+    # write results of devices
+    json_obj["per_device"] = []
+    for d in devices:
+        counter += 1
+        dev_obj = { "device": d }
+        dev_obj["categories"] = []
+        for c in sorted(category_sort.keys()):
+            if category_sort[c] not in devices[d].categories:
+                continue
+            cat = devices[d].get_category(category_sort[c])
+            t_counts = cat.get_counts()
+            u_counts = cat.get_unique_counts()
+            dates = cat.get_date_range()
+
+            # generat list of most common locations
+            loc_list = []
+            i = 0
+            # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
+            temppaths = dict(cat.paths)
+            thumbsum = cat.get_thumbcache_sum()
+            if thumbsum > 0:
+                temppaths[name_for_thumbcache] = thumbsum
+            browser_sums = cat.get_browsercache_sums()
+            for b in browser_sums.keys():
+                temppaths[name_for_browsercache+" "+b] = browser_sums[b]
+            # work with the temporary pathlist incl. the thumbcache-entry
+            for k in sorted(temppaths, key=temppaths.get, reverse=True):
+                i += 1
+                if i > number_of_showed_paths:
+                    break
+                loc_list.append(f"{shorten_path(k)}")
+
+            # create device object
+            dev_obj["categories"].append({
+                    "category": cat.name,
+                    "count_summary": cat.get_counts_string(),
+                    "picture_count": t_counts[1],
+                    "picture_count_unique": u_counts[1],
+                    "video_count": t_counts[2],
+                    "video_count_unique": u_counts[2],
+                    "creation_summary": cat.get_date_range_string(),
+                    "creation_startdate": dates[0],
+                    "creation_enddate": dates[1],
+                    "distribution_over_time": cat.get_grouped_dates(),
+                    "percentage_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]),
+                    "most_common_locations": loc_list
+                })
+        # add device object to list of devices
+        json_obj["per_device"].append(dev_obj)
+        # update progressbar
+        progress(counter, totallength)
+
+    # write to file
+    json_file = open(result_filename, "w", encoding=result_encoding)
+    json_file.write(json.dumps(json_obj, indent=2, ensure_ascii=False))
+    json_file.close()
 
 def write_outputfile_txt():
     file_result = open(result_filename,"w", encoding=result_encoding)
@@ -781,7 +883,7 @@ def write_outputfile_txt():
         file_result.write(f"{labels['number_of_devices']}\t\t\t\t{cat_devcount[cat.name]}\n")
         if cat.visible:
             # daterange
-            file_result.write(f"{labels['creation_on_disk']}\t{cat.get_date_range()}\n")
+            file_result.write(f"{labels['creation_on_disk']}\t{cat.get_date_range_string()}\n")
             # timeline
             file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
@@ -806,7 +908,7 @@ def write_outputfile_txt():
             file_result.write(f"{labels['quantity_filetype']}\t\t\t\t{cat.get_counts_string()}\n")
             if cat.visible:
                 # daterange
-                file_result.write(f"{labels['creation_on_disk']}\t\t\t\t{cat.get_date_range()}\n")
+                file_result.write(f"{labels['creation_on_disk']}\t\t\t\t{cat.get_date_range_string()}\n")
                 # timeline
                 file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_dates()}\n")
                 # proportion storage <-> browser cache
@@ -870,7 +972,7 @@ def write_pathdetails():
             # count & mediatype
             file_result.write(f"{labels['quantity_filetype']}:\t\t\t\t{cat.get_counts_string()}\n")
             # daterange
-            file_result.write(f"{labels['creation_on_disk']}:\t\t\t\t{cat.get_date_range()}\n")
+            file_result.write(f"{labels['creation_on_disk']}:\t\t\t\t{cat.get_date_range_string()}\n")
             # timeline
             file_result.write(f"{labels['distribution_in_time_period']}:\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
