@@ -5,6 +5,7 @@
 
 	"result": {
 		"encoding": "utf8",
+		"language": "de_DE",
 		"number_of_showed_paths": 5,
 		"generate_pathdetails": true,
 		"pathdetails_name": "pathdetails.txt",
@@ -28,15 +29,15 @@
 	],
 
 	"categories": [
-		{ "name": "Legale Pornographie", "legality": true, "sort": 9 },
-		{ "name": "KiPo", "legality": false, "sort": 1 },
-		{ "name": "VKiPo", "legality": false, "sort": 2 },
-		{ "name": "Praeferenzindikatoren", "legality": true, "sort": 3 },
-		{ "name": "Kind", "legality": true, "sort": 4 },
-		{ "name": "Sexuelle_Gewalt", "legality": false, "sort": 5 },
-		{ "name": "Verbotene_Gewalt", "legality": false, "sort": 6 },
-		{ "name": "Zoophilie", "legality": false, "sort": 7 },
-		{ "name": "Possible new victim (CP)", "legality": true, "sort": 8 }
+		{ "name": "Legale Pornographie", "legality": true, "sort": 9, "show_in_report": false },
+		{ "name": "KiPo", "legality": false, "sort": 1, "show_in_report": true },
+		{ "name": "VKiPo", "legality": false, "sort": 2, "show_in_report": true },
+		{ "name": "Praeferenzindikatoren", "legality": true, "sort": 3, "show_in_report": true },
+		{ "name": "Kind", "legality": true, "sort": 4, "show_in_report": true },
+		{ "name": "Sexuelle_Gewalt", "legality": false, "sort": 5, "show_in_report": true },
+		{ "name": "Verbotene_Gewalt", "legality": false, "sort": 6, "show_in_report": true },
+		{ "name": "Zoophilie", "legality": false, "sort": 7, "show_in_report": true },
+		{ "name": "Possible new victim (CP)", "legality": true, "sort": 8, "show_in_report": true }
 	],
 
 	"caches": [

@@ -1,0 +1,60 @@
+{
+	"languages": [
+		{
+			"lang": "en_US",
+			"labels": [
+				{ "label": "result_from", "text": "Result from" },
+				{ "label": "analyzed_file", "text": "Analyzed file:\t" },
+				{ "label": "number_of_rows", "text": "Number of rows:" },
+				{ "label": "number_of_devices", "text": "Number of devices:" },
+				{ "label": "total_over_all_devices", "text": "Total over all devices:" },
+				{ "label": "on_1_disk", "text": "Disk" },
+				{ "label": "on_x_disks", "text": "Disks" },
+				{ "label": "x_on_x", "text": "on" },
+				{ "label": "distribution_in_time_period", "text": "Distribution in time period:" },
+				{ "label": "percentage_browsercache", "text": "Percentage Browsercache:" },
+				{ "label": "quantity_filetype", "text": "Quantity/Filetype:" },
+				{ "label": "creation_on_disk", "text": "Creation on disk:" },
+				{ "label": "most_common_locations", "text": "Most common locations:" },
+				{ "label": "locations", "text": "locations:" },
+				{ "label": "path_details_from", "text": "Path details from" },
+				{ "label": "files", "text": "Files" },
+				{ "label": "illegal", "text": "Illegal" },
+				{ "label": "legal", "text": "Legal" },
+				{ "label": "total", "text": "Total" },
+				{ "label": "browsercache", "text": "Browsercache" },
+				{ "label": "caches", "text": "Caches" },
+				{ "label": "cache_details", "text": "Cache details" }
+			]
+		},
+		{
+			"lang": "de_DE",
+			"labels": [
+				{ "label": "result_from", "text": "Ergebnis vom" },
+				{ "label": "analyzed_file", "text": "Analysierte Datei:" },
+				{ "label": "number_of_rows", "text": "Anzahl Zeilen:\t" },
+				{ "label": "number_of_devices", "text": "Anzahl Geräte:" },
+				{ "label": "total_over_all_devices", "text": "Total über alle Geräte:" },
+				{ "label": "on_1_disk", "text": "Datenträger" },
+				{ "label": "on_x_disks", "text": "Datenträgern" },
+				{ "label": "x_on_x", "text": "auf" },
+				{ "label": "distribution_in_time_period", "text": "Verteilung im Zeitraum:" },
+				{ "label": "percentage_browsercache", "text": "Anteil Browsercache:" },
+				{ "label": "quantity_filetype", "text": "Menge/Dateityp:" },
+				{ "label": "creation_on_disk", "text": "Erstellung auf Datenträger:" },
+				{ "label": "most_common_locations", "text": "Häufigste Speicherorte:" },
+				{ "label": "locations", "text": "Speicherorte:" },
+				{ "label": "path_details_from", "text": "Pfad-Details vom" },
+				{ "label": "files", "text": "Dateien" },
+				{ "label": "illegal", "text": "Illegal" },
+				{ "label": "legal", "text": "Legal" },
+				{ "label": "total", "text": "Total" },
+				{ "label": "browsercache", "text": "Browsercache" },
+				{ "label": "caches", "text": "Caches" },
+				{ "label": "cache_details", "text": "Cache details" }
+			]
+		}
+	]
+}
+
+

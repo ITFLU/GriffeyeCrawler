@@ -70,6 +70,7 @@ class Category:
     def __init__(self, name, initial_date):
         self.name = name
         self.legality = category_legality.get(name, True)
+        self.visible = category_visibilty.get(name, True)
         self.min_date = empty_date
         if initial_date != unix_date:
             self.min_date = initial_date
@@ -293,6 +294,13 @@ class SeparatorNotFoundException(Exception):
     def __init__(self):
         self.message = f"Column separator could not be found... Please use option -s"
 
+class LanguageNotFoundException(Exception):
+    """
+    error in case of the language labels could not be detected
+    """
+    def __init__(self, language):
+        self.message = f"Language '{language}' could not be found..."
+
 class LineNotValidException(Exception):
     """
     error in case of a csv-entry with ; in a field without " around it
@@ -318,6 +326,12 @@ defines the format too based on the file extension and overwrites -f''')
                         help=f'''\
 defines the output format.
 possible values: {", ".join(map(str,valid_formats))} (default: {default_format})''')
+    parser.add_argument("-l", metavar="language", action="store", type=str, 
+                        help='''\
+language for output documents in locale format (e.g. en_US, de_DE)
+if locale is not found, only the first part of the locale is checked
+languages are based on labels.json
+(default from config.json)''')
     parser.add_argument("--date", metavar="dates", action="store", type=str, 
                         help='''\
 list of datefields separated by comma to get the dates from
@@ -425,6 +439,8 @@ def check_columns(header):
     # check for datefields
     counter = 0
     for d in datefields_list:
+        d = d.lower()
+        cols = list(map(lambda c: c.lower(), cols))
         if d in cols:
             column_index["col_date"+str(counter)] = cols.index(d)
             counter+=1
@@ -539,7 +555,7 @@ def calculate_device_totals():
     """
     calculates totals from devices
     """
-    global device_totals
+    global cat_totals
     global cat_devcount
     for d in devices:
         categories = devices[d].get_categories()
@@ -551,11 +567,11 @@ def calculate_device_totals():
                 cat_devcount[dev_cat.name] += 1
             # get/generate total category
             total_cat = None
-            if dev_cat.name not in device_totals.keys():
+            if dev_cat.name not in cat_totals.keys():
                 total_cat = Category(dev_cat.name, dev_cat.min_date)
-                device_totals[dev_cat.name] = total_cat
+                cat_totals[dev_cat.name] = total_cat
             else:
-                total_cat = device_totals[dev_cat.name]
+                total_cat = cat_totals[dev_cat.name]
             # merge device-category to total-category
             total_cat.merge(dev_cat)
 
@@ -567,30 +583,30 @@ def write_outputfile_docx():
 
     document = Document()
     # write results of file-analysis
-    document.add_heading(f"GRIFFEYE-CRAWLER - Results from {datetime.now().strftime('%d.%m.%Y')}", 1)
+    document.add_heading(f"GRIFFEYE-CRAWLER - {labels['result_from']} {datetime.now().strftime('%d.%m.%Y')}", 1)
     p = document.add_paragraph()
-    run = p.add_run(f"Analyzed File:\t{input_filename}\nNumber of rows:\t{line_count}")
+    run = p.add_run(f"{labels['analyzed_file']}\t{input_filename}\n{labels['number_of_rows']}\t{line_count}")
     run.font.name = text_fontname
     run.font.size = text_fontsize
     counter = 0
     totallength = len(devices)+1 # + total-table
 
     # write total results
-    document.add_heading("Total over all devices", 2)
+    document.add_heading(f"{labels['total_over_all_devices']}", 2)
     for c in sorted(category_sort.keys()):
-        if category_sort[c] not in device_totals.keys():
+        if category_sort[c] not in cat_totals.keys():
             continue
-        cat = device_totals[category_sort[c]]
+        cat = cat_totals[category_sort[c]]
         # write table...
         table = document.add_table(rows=1, cols=2, style="Table Grid")
         # format header
         hdr_cells = table.rows[0].cells
         # cell merging
         hdr_cells[0].text = cat.name
-        datentr = "Disk"
+        datentr = labels['on_1_disk']
         if cat_devcount[category_sort[c]] > 1:
-            datentr = "Disks"
-        hdr_cells[1].text = f"{cat.get_counts_string()} on {cat_devcount[category_sort[c]]} {datentr}"
+            datentr = labels['on_x_disks']
+        hdr_cells[1].text = f"{cat.get_counts_string()} {labels['x_on_x']} {cat_devcount[category_sort[c]]} {datentr}"
         # background color
         cellshade = OxmlElement("w:shd")
         cellshade.set(qn("w:fill"), "#CCCCCC")
@@ -614,14 +630,14 @@ def write_outputfile_docx():
         run.font.size = table_fontsize
 
         # fill data...
-        if category_sort[c] != "Legale Pornographie":
+        if cat.visible:
             # timeline
             row_cells = table.add_row().cells
-            row_cells[0].text = "istribution in time period:"
+            row_cells[0].text = f"{labels['distribution_in_time_period']}"
             row_cells[1].text = f"{cat.get_grouped_dates()}"
             # proportion storage <-> browser cache
             row_cells = table.add_row().cells
-            row_cells[0].text = "Percentage Browsercache:"
+            row_cells[0].text = f"{labels['percentage_browsercache']}"
             row_cells[1].text = f"{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}"
         
         # format table
@@ -678,24 +694,24 @@ def write_outputfile_docx():
             # fill data...
             # count & mediatype
             row_cells = table.add_row().cells
-            row_cells[0].text = "Quantity/Filetype:"
+            row_cells[0].text = f"{labels['quantity_filetype']}"
             row_cells[1].text = cat.get_counts_string()
-            if category_sort[c] != "Legale Pornographie":
+            if cat.visible:
                 # daterange
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Creation on disk:"
+                row_cells[0].text = f"{labels['creation_on_disk']}"
                 row_cells[1].text = f"{cat.get_date_range()}"
                 # timeline
                 row_cells = table.add_row().cells
-                row_cells[0].text = "istribution in time period:"
+                row_cells[0].text = f"{labels['distribution_in_time_period']}"
                 row_cells[1].text = f"{cat.get_grouped_dates()}"
                 # proportion storage <-> browser cache
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Percentage Browsercache:"
+                row_cells[0].text = f"{labels['percentage_browsercache']}"
                 row_cells[1].text = f"{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}"
                 # paths
                 row_cells = table.add_row().cells
-                row_cells[0].text = "Most common locations:"
+                row_cells[0].text = f"{labels['most_common_locations']}"
                 # show top-paths
                 rows = ""
                 i = 0
@@ -744,32 +760,32 @@ def write_outputfile_json():
 def write_outputfile_txt():
     file_result = open(result_filename,"w", encoding=result_encoding)
     # write results of file-analysis
-    file_result.write(f"GRIFFEYE-CRAWLER - results from {datetime.now().strftime('%d.%m.%Y')}\n")
+    file_result.write(f"GRIFFEYE-CRAWLER - {labels['result_from']} {datetime.now().strftime('%d.%m.%Y')}\n")
     file_result.write("="*43+"\n")
-    file_result.write(f"Analyzed File:\t{input_filename}\n")
-    file_result.write(f"Number of Rows:\t{line_count}\n")
+    file_result.write(f"{labels['analyzed_file']}\t{input_filename}\n")
+    file_result.write(f"{labels['number_of_rows']}\t{line_count}\n")
     file_result.write("\n")
     counter = 0
     totallength = len(devices)+1 # + total-table
 
     # write total results
-    file_result.write("\n{}\n".format(get_titlestring("Total over all devices", "=")))
+    file_result.write("\n{}\n".format(get_titlestring(f"{labels['total_over_all_devices']}", "=")))
     for c in sorted(category_sort.keys()):
-        if category_sort[c] not in device_totals.keys():
+        if category_sort[c] not in cat_totals.keys():
             continue
-        cat = device_totals[category_sort[c]]
+        cat = cat_totals[category_sort[c]]
         file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
         # count & mediatype
-        file_result.write(f"Quantity/Filetype:\t\t\t\t{cat.get_counts_string()}\n")
+        file_result.write(f"{labels['quantity_filetype']}\t\t\t\t{cat.get_counts_string()}\n")
         # devicecount
-        file_result.write(f"Number of devices:\t\t\t\t{cat_devcount[category_sort[c]]}\n")
-        if category_sort[c] != "Legale Pornographie":
+        file_result.write(f"{labels['number_of_devices']}\t\t\t\t{cat_devcount[cat.name]}\n")
+        if cat.visible:
             # daterange
-            file_result.write(f"Creation on disk:\t\t\t\t{cat.get_date_range()}\n")
+            file_result.write(f"{labels['creation_on_disk']}\t{cat.get_date_range()}\n")
             # timeline
-            file_result.write(f"Distribution in time period:\t{cat.get_grouped_dates()}\n")
+            file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
-            file_result.write(f"Percentage Browsercache:\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
+            file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
     file_result.write("\n")
 
     counter += 1
@@ -787,16 +803,16 @@ def write_outputfile_txt():
             cat = devices[d].get_category(category_sort[c])
             file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
             # count & mediatype
-            file_result.write(f"Menge/Dateityp:\t\t\t\t{cat.get_counts_string()}\n")
-            if category_sort[c] != "Legale Pornographie":
+            file_result.write(f"{labels['quantity_filetype']}\t\t\t\t{cat.get_counts_string()}\n")
+            if cat.visible:
                 # daterange
-                file_result.write(f"Creation on disk:\t\t\t\t{cat.get_date_range()}\n")
+                file_result.write(f"{labels['creation_on_disk']}\t\t\t\t{cat.get_date_range()}\n")
                 # timeline
-                file_result.write(f"Distribution in time period:\t{cat.get_grouped_dates()}\n")
+                file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_dates()}\n")
                 # proportion storage <-> browser cache
-                file_result.write(f"Percentage Browsercache:\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
+                file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
                 # paths
-                file_result.write("Most common Locations:\n")
+                file_result.write(f"{labels['most_common_locations']}\n")
                 # show top-paths
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
@@ -832,10 +848,10 @@ def write_pathdetails():
     enc = config["result"]["pathdetails_encoding"]
     file_result = open(get_output_path(input_filename)+details_name,"w", encoding=enc)
     # write results of file-analyze
-    file_result.write(f"GRIFFEYE-CRAWLER - path details from {datetime.now().strftime('%d.%m.%Y')}\n")
+    file_result.write(f"GRIFFEYE-CRAWLER - {labels['path_details_from']} {datetime.now().strftime('%d.%m.%Y')}\n")
     file_result.write("="*47+"\n")
-    file_result.write(f"Analyzed File:\t{input_filename}\n")
-    file_result.write(f"Number of Rows:\t{line_count}\n")
+    file_result.write(f"{labels['analyzed_file']}:\t{input_filename}\n")
+    file_result.write(f"{labels['number_of_rows']}:\t{line_count}\n")
     file_result.write("\n")
 
     # write results of devices
@@ -843,8 +859,8 @@ def write_pathdetails():
     for d in devices:
         counter += 1
         file_result.write("\n{}\n".format(get_titlestring(d, "=")))
-        file_result.write("{} Files (Legal: {}, Illegal: {})".format(devices[d].get_counts()[0], devices[d].get_counts()[1], devices[d].get_counts()[2]))
-        file_result.write("  >>  {:.2f}% illegal\n".format((devices[d].get_counts()[2]/devices[d].get_counts()[0])*100))
+        file_result.write(f"{devices[d].get_counts()[0]} {labels['files']} ({labels['legal']}: {devices[d].get_counts()[1]}, {labels['illegal']}: {devices[d].get_counts()[2]})")
+        file_result.write("  >>  {:.2f}% {}\n".format((devices[d].get_counts()[2]/devices[d].get_counts()[0])*100, labels['illegal']))
         for c in sorted(category_sort.keys()):
             if category_sort[c] not in devices[d].categories:
                 continue
@@ -852,11 +868,11 @@ def write_pathdetails():
             cat = devices[d].get_category(category_sort[c])
             file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
             # count & mediatype
-            file_result.write(f"Quantity/Filetype:\t\t\t\t{cat.get_counts_string()}\n")
+            file_result.write(f"{labels['quantity_filetype']}:\t\t\t\t{cat.get_counts_string()}\n")
             # daterange
-            file_result.write(f"Creation on disk:\t\t\t\t{cat.get_date_range()}\n")
+            file_result.write(f"{labels['creation_on_disk']}:\t\t\t\t{cat.get_date_range()}\n")
             # timeline
-            file_result.write(f"Distribution in time period:\t{cat.get_grouped_dates()}\n")
+            file_result.write(f"{labels['distribution_in_time_period']}:\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
             browser_total = cat.get_browsercache_total()
             counts_total = cat.get_counts()[0]
@@ -864,9 +880,9 @@ def write_pathdetails():
             perc_str = "{:.0f}%".format(perc)
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
-            file_result.write(f"Percentage browsercache:\t\t{perc_str} >>> (Total: {counts_total}, Browsercache: {browser_total})\n")
+            file_result.write(f"{labels['percentage_browsercache']}:\t\t{perc_str} >>> ({labels['total']}: {counts_total}, {labels['browsercache']}: {browser_total})\n")
             # paths
-            file_result.write("Locations:\n")
+            file_result.write(f"{labels['locations']}:\n")
 
             # show paths
             # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
@@ -879,10 +895,10 @@ def write_pathdetails():
                 file_result.write("- {} >>> {}\n".format(k, str(temppaths[k])))
             # if available, write other caches
             if len(cat.cachepaths)>0:
-                file_result.write("    > Caches <\n")
+                file_result.write(f"    > {labels['caches']} <\n")
                 for k in sorted(cat.cachegroups, key=cat.cachegroups.get, reverse=True):
                     file_result.write("- {} >>> {}\n".format(k, str(cat.cachegroups[k])))
-                file_result.write("    > Cache-Details <\n")
+                file_result.write(f"    > {labels['cache_details']} <\n")
                 for k in sorted(cat.cachepaths, key=cat.cachepaths.get, reverse=True):
                     file_result.write("- {} >>> {}\n".format(k, str(cat.cachepaths[k])))
 
@@ -894,25 +910,29 @@ def write_pathdetails():
 
 def read_config():
     """
-    read configurations (can be overwritten by input options)
+    read configurations from config.json (can be overwritten by input options)
     """
     global config
     global input_encoding
     global result_encoding
+    global result_language
     global category_legality
+    global category_visibilty
     global category_sort
     global known_cache_paths
     global browser_names
     global thumbcache_names
     global number_of_showed_paths
 
-    with open('config.json') as c:
+    with open('config.json', 'r', encoding='utf-8') as c:
         data = c.read()
     config = json.loads(data)
     input_encoding = config["input"]["encoding"]
     result_encoding = config["result"]["encoding"]
+    result_language = config["result"]["language"]
     for cat in config["categories"]:
         category_legality[cat["name"]] = cat["legality"]
+        category_visibilty[cat["name"]] = cat["show_in_report"]
         category_sort[cat["sort"]] = cat["name"]
     for cac in config["caches"]:
         known_cache_paths[cac["path"]] = cac["name"]
@@ -922,6 +942,41 @@ def read_config():
             thumbcache_names.append(cac["name"])
     number_of_showed_paths = config["result"]["number_of_showed_paths"]
 
+def read_labels():
+    """
+    read labels for multi language support from labels.json
+    """
+    global labels
+    global result_language
+    done = False
+
+    with open('labels.json', 'r', encoding='utf-8') as d:
+        data = d.read()
+    config = json.loads(data)
+    for l in config["languages"]:
+        if l["lang"] == result_language:
+            for lab in l["labels"]:
+                labels[lab["label"]] = lab["text"]
+            result_language = l["lang"]
+            done = True
+            break
+    
+    if not done:
+        # no language found > check for main language
+        for l in config["languages"]:
+            if l["lang"][:2] == result_language[:2]:
+                for lab in l["labels"]:
+                    labels[lab["label"]] = lab["text"]
+                print(f"[i] Language '{result_language}' not found! '{result_language[:2]}' used instead...")
+                result_language = l["lang"][:2]
+                done = True
+                break
+    
+    if not done:
+        # no language found > throw error
+        raise LanguageNotFoundException(result_language)
+    
+
 def generate_datefields_list():
     global datefields_list
     if args.date:
@@ -929,7 +984,7 @@ def generate_datefields_list():
             
     if not datefields_list:
         if args.date:
-            print(f"No date definitions found! Default is used...")
+            print(f"[i] No date definitions found! Default is used...")
         for c in config["needed_columns"]:
             if c["key"]=="col_date":
                 datefields_list.append(c["columnname"])
@@ -953,7 +1008,7 @@ def get_output_format():
     if ext in valid_formats:
         return ext
     
-    print(f"Output format '{ext}' not found! Default format is used...")
+    print(f"[i] Output format '{ext}' not found! Default format is used...")
     return default_format
 
 def get_output_name(inputname):
@@ -983,7 +1038,7 @@ def get_output_path(inputname):
 # init
 column_index = {}
 devices = {}
-device_totals = {}
+cat_totals = {}
 cat_devcount = {}
 invalid_lines = []
 datefields_list = []
@@ -1003,7 +1058,10 @@ config = {}
 input_encoding = ""
 result_filename = ""
 result_encoding = ""
+result_language = "en"
+labels = {}
 category_legality = {}
+category_visibilty = {}
 category_sort = {}
 known_cache_paths = {}
 browser_names = []
@@ -1029,6 +1087,9 @@ try:
     csv_separator = args.s if args.s else csv_separator
     # set number of showed paths from options
     number_of_showed_paths = args.n if args.n else number_of_showed_paths
+    # set language from options
+    result_language = args.l if args.l else result_language
+    read_labels()
     # set list of datefields
     generate_datefields_list()
 
@@ -1037,8 +1098,8 @@ try:
     analyze_file(input_filename)
     if len(invalid_lines) > 0:
         print()
-        print("  !!! Invalid rows detected in CSV and ignored in processing")
-        print("  !!! Rows: ", end="")
+        print("  [i] Invalid rows detected in CSV and ignored in processing")
+        print("  [i] Rows: ", end="")
         for l in invalid_lines:
             print(l, end="  ")
         print()
@@ -1077,6 +1138,10 @@ except ColumnNotFoundException as exp:
     print("[!] Processing aborted!")
     print(">", exp.message)
 except SeparatorNotFoundException as exp:
+    print()
+    print("[!] Processing aborted!")
+    print(">", exp.message)
+except LanguageNotFoundException as exp:
     print()
     print("[!] Processing aborted!")
     print(">", exp.message)
