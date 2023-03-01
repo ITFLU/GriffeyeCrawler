@@ -1,8 +1,10 @@
 # GriffeyeCrawler
 
+> For english version visit `README_en.md`
+
 ## Überblick
 
-Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
+Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 - Summiert die Bilder und Videos (Total & binary unique)
 - Fasst die Dateipfade zusammen und unterteilt diese in Cache- & Nicht-Cache-Pfade auf
 - Ermittelt die Pfade mit den meisten Inhalten
@@ -14,6 +16,7 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 
 
 ## Export aus Griffeye
+
 - Menütab *Report / Export*
 - *CSV*
 - *Illegal Files*
@@ -23,10 +26,10 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 
 ## Installation
 
-- Python 3.x herunterladen (www.python.org) und installieren.
+- Python 3.x installieren (www.python.org)
   - Sichergehen, dass "pip" ebenfalls installiert wird (ist standardmässig aktiviert)
   - Ob die Installationen erfolgreich waren mittels ``python --version`` & ``pip --version`` in der Kommandozeile kontrollieren
-  - evtl. muss *%APPDATA%\Local\Programs\Python\Python\\{Version}* (Python) & *..\Scripts* (pip) in den Umgebungsvariablen erfasst werden
+  - evtl. müssen Python und pip in den Umgebungsvariablen erfasst werden (In Windows meistens unter *%APPDATA%\Local\Programs\Python\Python\\{Version}* für Python & *..\Scripts* für pip)
 - Das Package *docx* mit ``pip install python-docx`` installieren
 
 > Sollte die Installation von Python und Python-Paketen auf dem ausführenden System nicht möglich sein, kann mit Hilfe von **PyInstaller** eine EXE-Datei erstellt werden.
@@ -40,6 +43,7 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät &amp; Kategorie
 ## Verwendung
 
 ### Ausführung Standardfall
+
 - *GriffeyeCrawler.py* doppelklicken
 - Name der zu verarbeitenden CSV-Datei angeben oder via Drag-n-Drop hineinziehen.
 - Das Ergebnis wird im Verzeichnis der angegebenen CSV-Datei mit demselben Namen als DOCX erstellt. Ausserdem wird bei jeder Verarbeitung die Datei *{name}_pathdetails.txt* erstellt, welche detailliertere Informationen zu den ausgewerteten Daten enthält.
@@ -73,6 +77,7 @@ optional arguments:
                   (default: input directory and input filename with the extension of the format)
                   defines the format too based on the file extension and overwrites -f
   -f format       defines the output format
+                  overwritten by -o if a file extension is defined
                   possible values: docx, json, txt (default: docx)
   -l language     language for output documents (only partially for json) in locale format (e.g. en_US, de_DE)
                   if locale is not found, only the first part of the locale is checked (e.g. en, de)
@@ -80,15 +85,31 @@ optional arguments:
                   (default from config.json)
   -n number       number of paths to show per category
   -s separator    defines the column separator
-                  (default: automatically detects the separators used by griffeye > comma or semicolon)
-  --date dates    list of datefields to get the dates from separated by comma without space
+                  (default: automatically detected > comma or semicolon by Griffeye)
+  --date dates    list of datefields to get the dates from separated by comma without space (case insensitive)
+                  if a date is empty (01.01.0001, 01.01.1970 or '') the next field in the list is checked
                   needs to be wrapped in quotes if it contains a space
-                  (default: created date,last write time)
-  --exclude path  list of textparts to be excluded from the filepath separated by comma without space
+                  (default from config.json)
+  --exclude path  list of textparts in the filepath field to be excluded from the analysis
+                  separated by comma without space (case insensitive)
                   needs to be wrapped in quotes if it contains a space
-                  (default: created date,last write time)
   --nodetails     don't generate the pathdetails file
 ```
+
+Beispiele:
+
+- JSON erstellen mit den Datumsfeldern nach folgender Reihenfolge priorisiert: 'EXIF Datum' dann 'Letzte Änderung' dann 'Erstelldatum'
+
+  `python gc-cli.py metadata.csv --date "exif: createdate,last write time,created date" -f json`
+
+- DOCX in englischer Sprache ohne Dateien in Pfaden mit 'unallocated' und 'thumbcache' im Namen erstellen
+
+  `python gc-cli.py metadata.csv --exclude unallocated,thumbcache -l en_us`
+
+- JSON mit einem neuen Namen in einem Unterordner erstellen, ohne Detail-Datei dafür mit den 10 häufigsten Speicherorten
+
+  `python gc-cli.py metadata.csv -o mysubfolder/mynew.json -n 10 --nodetails`
+
 
 
 ## Allgemeine Hinweise
@@ -135,7 +156,7 @@ Die Einstellungen zur alternativen Datumsspalte (siehe *Created Date*) finden si
 * *File Type*: Steuert Einteilung in "Picture" oder "Video" 
 * *Created Date*: Steuert Festlegung des Zeitraums & prozentuelle Verteilung auf die Jahre 
   * Ist *Created Date* leer (`01.01.0001`) wird nach der alternativen Datumsspalte *Last Write Time* gesucht. Sonst wird der Wert `undefiniert` verwendet.
-  Dieses Verhalten wurde bisher erst bei Daten aus Mobiles festgestellt.
+  Dieses Verhalten wurde bisher meistens bei Daten aus Mobiles festgestellt.
 * *Source ID*: Steuert Einteilung zum entsprechenden Gerät
 * *MD5* oder *SHA-1*: Steuert Erkennung des binary unique-Wertes
   * Wird *MD5* in den vorhandenen Spalten nicht gefunden muss *SHA-1* vorhanden sein.
