@@ -59,7 +59,7 @@ The file can also be dropped with drag-n-drop in the console. Different configur
 
 The following options are available (help can be called with the `-h` option):
 
-```shell
+```
 usage: gc-cli [options] file
 
 Commandline version of 'GriffeyeCrawler'

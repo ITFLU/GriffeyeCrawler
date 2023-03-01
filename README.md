@@ -60,7 +60,7 @@ Dabei kann die Datei auch mittels Drag-n-Drop in die Kommandozeile gezogen werde
 
 Folgende Optionen stehen zur Verfügung (Hilfe mittels Option `-h` aufrufbar):
 
-```shell
+```
 usage: gc-cli [options] file
 
 Commandline version of 'GriffeyeCrawler'
