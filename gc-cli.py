@@ -324,7 +324,17 @@ class LineNotValidException(Exception):
 
 def configure_argparse():
     global args
-    parser = argparse.ArgumentParser(prog="gc-cli", description="Commandline version of 'GriffeyeCrawler'\nAnalyze an exported filelist of Griffeye", formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(prog="gc-cli", 
+                                     description="Commandline version of 'GriffeyeCrawler'\nAnalyze an exported filelist of Griffeye", 
+                                     formatter_class=argparse.RawTextHelpFormatter,
+                                     epilog='''\
+Example of use
+- JSON with dates from datefields prioritized as follows: 'exif dates' then 'last write time' then 'created date'
+    python gc-cli.py metadata.csv --date "exif: createdate,last write time,created date" -f json
+- DOCX in english excluding files in pathes including the texts 'unallocated' and 'thumbcache'
+    python gc-cli.py metadata.csv --exclude unallocated,thumbcache -l en_us
+- JSON with new name in subfolder without details file but with max. 10 most common paths
+    python gc-cli.py metadata.csv -o mysubfolder/mynew.json -n 10 --nodetails''')
     parser.version=version
     parser.add_argument("file", type=str, help="export csv of Griffeye")    
     parser.add_argument("-v", "--version", action="version")
@@ -337,6 +347,7 @@ defines the format too based on the file extension and overwrites -f''')
     parser.add_argument("-f", metavar="format", action="store", type=str, 
                         help=f'''\
 defines the output format
+overwritten by -o if a file extension is defined
 possible values: {", ".join(map(str,valid_formats))} (default: {default_format})''')
     parser.add_argument("-l", metavar="language", action="store", type=str, 
                         help='''\
@@ -348,17 +359,18 @@ languages are based on labels.json
     parser.add_argument("-s", metavar="separator", action="store", type=str, 
                         help='''\
 defines the column separator
-(default: automatically detects the separators used by griffeye > comma or semicolon)''')
+(default: automatically detected > comma or semicolon by Griffeye)''')
     parser.add_argument("--date", metavar="dates", action="store", type=str, 
                         help='''\
-list of datefields to get the dates from separated by comma without space
+list of datefields to get the dates from separated by comma without space (case insensitive)
+if a date is empty (01.01.0001, 01.01.1970 or '') the next field in the list is checked
 needs to be wrapped in quotes if it contains a space
-(default: created date,last write time)''')
+(default from config.json)''')
     parser.add_argument("--exclude", metavar="path", action="store", type=str, 
                         help='''\
-list of textparts to be excluded from the filepath separated by comma without space
-needs to be wrapped in quotes if it contains a space 
-(default: created date,last write time)''')
+list of textparts in the filepath field to be excluded from the analysis
+separated by comma without space (case insensitive)
+needs to be wrapped in quotes if it contains a space''')
     parser.add_argument("--nodetails", action="store_true", help="don't generate the pathdetails file")
     args = parser.parse_args()
 
