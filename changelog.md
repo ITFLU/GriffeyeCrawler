@@ -1,5 +1,13 @@
 # GriffeyeCrawler - Changelog
 
+## Version 1.0 - 01.03.2023
+Umstellung auf CLI-Version und "UI" für Standardfälle
+- Feature: Möglichkeit zur Angabe der zu verwendenden Datum-Felder
+- Feature: Möglichkeit zum Auschluss unerwünschter Pfade
+- Feature: Möglichkeit zur Ausgabe im JSON-Format
+- Feature: Möglichkeit zum Ändern der Sprache in der Ergebnisdatei
+- Feature: Möglichkeit zur Definition des Ergebnispfads bzw. der Ergebnidatei
+
 ## Version 0.5.2 - 21.02.2023
 - Bugfix: Probleme mit mehreren aufeinander folgenden Gänsefüsschen (in "Series Names") behoben
 

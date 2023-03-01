@@ -1,10 +1,11 @@
 # General files
 _files/
 workfiles/
-report_all.csv
-result.txt
-result.docx
+.vscode/
+report*
+metadaten*
 pathdetails.txt
+HowToConvertToExe.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
