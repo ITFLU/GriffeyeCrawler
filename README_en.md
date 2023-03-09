@@ -27,9 +27,9 @@ Analyzes an exported file list of Griffeye per device & category
 
 - Install Python 3.x (www.python.org)
   - Make sure "pip" is also installed (enabled by default)
-  - Check if the installation was successful (``python --version`` & ``pip --version``)
+  - Check if the installation was successful (`python --version` & `pip --version`)
   - Eventually python and pip have to be defined in the environment variables (In Windows mostly under *%APPDATA%\Local\Programs\Python\Python\\{Version}* for python & *..\Scripts* for pip)
-- Das Package *docx* mit ``pip install python-docx`` installieren
+- Install the package  *docx* with `pip install python-docx` or `pip install -r requirements.txt`
 
 > If it is not possible to install Python and Python packages on the executing system, an EXE file can be created using **PyInstaller**.
 > - Installation: `pip install pyinstaller`
@@ -174,5 +174,5 @@ config.json: `caches`
 
 The classification into caches can be defined using the `path` option. This value is searched for in the file path in order to make the appropriate classification. `name` defines the corresponding product, while `is_browser` allows a definition as a browser cache (calculation of the percentage browser cache share & collection per browser in the most common paths like in *is_thumbcache*). `is_thumbcache` defines a thumbcache (thumbnails), whereby these are also listed as one value in the most common paths. The names to be displayed are defined under `other` - `name_for_thumbcache` or `other` - `name_for_browsercache`.
 
-> **CAUTION:** Windows paths must be separated under *path* with ``\\``. Unix-based file systems (Linux, Apple, etc.) are not affected.
+> **CAUTION:** Windows paths must be separated under *path* with `\\`. Unix-based file systems (Linux, Apple, etc.) are not affected.
 > (e.g. Windows: `Firefox\\Profiles`, Apple: `Firefox/Profiles`)

@@ -28,9 +28,9 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 
 - Python 3.x installieren (www.python.org)
   - Sichergehen, dass "pip" ebenfalls installiert wird (ist standardmässig aktiviert)
-  - Ob die Installationen erfolgreich waren mittels ``python --version`` & ``pip --version`` in der Kommandozeile kontrollieren
+  - Ob die Installationen erfolgreich waren mittels `python --version` & `pip --version` in der Kommandozeile kontrollieren
   - evtl. müssen Python und pip in den Umgebungsvariablen erfasst werden (In Windows meistens unter *%APPDATA%\Local\Programs\Python\Python\\{Version}* für Python & *..\Scripts* für pip)
-- Das Package *docx* mit ``pip install python-docx`` installieren
+- Das Package *docx* mit `pip install python-docx` oder `pip install -r requirements.txt` installieren
 
 > Sollte die Installation von Python und Python-Paketen auf dem ausführenden System nicht möglich sein, kann mit Hilfe von **PyInstaller** eine EXE-Datei erstellt werden.
 > - Installation: `pip install pyinstaller`
@@ -174,5 +174,5 @@ config.json: `caches`
 
 Die Einteilung in Caches kann mittels der Option `path` definiert werden. Nach diesem Wert wird im Dateipfad gesucht, um die entsprechende Einteilung vorzunehmen. `name` definiert das entsprechende Produkt, während `is_browser` eine Definition als Browser-Cache ermöglicht (Berechung des prozentuellen Browser-Cache-Anteils & Sammlung pro Browser in den meist vorkommenden Pfaden analog *is_thumbcache*). `is_thumbcache` definiert einen Thumbcache (Vorschaubilder), wodurch diese gesammelt als einen Wert ebenfalls in den meist vorkommenden Pfaden aufgeführt werden. Der dafür anzuzeigenden Namen sind unter `other` - `name_for_thumbcache` bzw. `other` - `name_for_browsercache` definiert.
 
-> **ACHTUNG:** Windows-Pfade müssen unter *path* mittels ``\\`` getrennt werden. Unix-basierte Dateisysteme (Linux, Apple, etc.) sind davon nicht betroffen. 
+> **ACHTUNG:** Windows-Pfade müssen unter *path* mittels `\\` getrennt werden. Unix-basierte Dateisysteme (Linux, Apple, etc.) sind davon nicht betroffen. 
 > (z.B. Windows: `Firefox\\Profiles`, Apple: `Firefox/Profiles`)
