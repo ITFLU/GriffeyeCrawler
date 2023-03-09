@@ -2,10 +2,6 @@
 _files/
 workfiles/
 .vscode/
-report*
-metadaten*
-pathdetails.txt
-HowToConvertToExe.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
