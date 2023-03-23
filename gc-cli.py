@@ -26,6 +26,10 @@ from docx.oxml.ns import qn
 from docx.enum.table import WD_ALIGN_VERTICAL
 
 
+MEDIATYPE_IMAGE = "Image"
+MEDIATYPE_VIDEO = "Video"
+MEDIATYPE_IGNORE = ""
+
 
 class Device:
     def __init__(self, sourceid, category, initial_date):
@@ -68,6 +72,31 @@ class Device:
         return (self.legal_count+self.illegal_count, self.legal_count, self.illegal_count)
 
 
+class Path:
+    def __init__(self, path, mediatype):
+        self.path = path
+        self.count_total = 0
+        self.count_pic = 0
+        self.count_vid = 0
+        self.show_details = False if mediatype==MEDIATYPE_IGNORE else True
+        self.increase_path(mediatype)
+    
+    # def __repr__(self):
+    #     return str((self.path, self.count_total))
+
+    def increase_path(self, mediatype):
+        self.count_total += 1
+        if mediatype == MEDIATYPE_IMAGE:
+            self.count_pic += 1
+        if mediatype == MEDIATYPE_VIDEO:
+            self.count_vid += 1
+        
+    def increase_class(self, path_class):
+        self.count_total += path_class.count_total
+        self.count_pic += path_class.count_pic
+        self.count_vid += path_class.count_vid
+
+
 class Category:
     def __init__(self, name, initial_date):
         self.name = name
@@ -97,15 +126,15 @@ class Category:
     def add_file(self, path, mediatype, date, hash):
         # increase counters & add hash to 'hashes' (>> deduplicates itself)
         self.tot_count += 1
-        if mediatype == "Image":
+        if mediatype == MEDIATYPE_IMAGE:
             self.pic_count += 1
             self.pic_hashes.add(hash)
-        if mediatype == "Video":
+        if mediatype == MEDIATYPE_VIDEO:
             self.vid_count += 1
             self.vid_hashes.add(hash)
 
         # increase path
-        self.increase_path(path)
+        self.increase_path(path, mediatype)
 
         # increase date
         self.increase_date(date)
@@ -129,17 +158,17 @@ class Category:
         # merge paths
         for path in merge_cat.paths.keys():
             if path not in self.paths.keys():
-                self.paths[path] = 1    # create
+                self.paths[path] = merge_cat.paths[path]    # create
             else:
-                self.paths[path] += 1   # increase
+                self.paths[path].increase_path_obj(merge_cat.paths[path])   # increase
         # merge cachepaths
         for path in merge_cat.cachepaths.keys():
             group = self.get_cache_group(path)
             if group is not None:
                 if group not in self.cachegroups.keys():
-                    self.cachegroups[group] = merge_cat.cachepaths[path]    # create
+                    self.cachegroups[group] = merge_cat.cachegroups[group]    # create
                 else:
-                    self.cachegroups[group] += merge_cat.cachepaths[path]     # increase
+                    self.cachegroups[group] += merge_cat.cachegroups[group]     # increase
         # merge hashes
         self.pic_hashes.update(merge_cat.get_pic_hashset())
         self.vid_hashes.update(merge_cat.get_vid_hashset())
@@ -150,17 +179,17 @@ class Category:
                 return known_cache_paths[k]
         return None
     
-    def increase_path(self, path):
+    def increase_path(self, path, mediatype):
         if path in self.cachepaths.keys():
             # path is in cachepath >> increase count
-            self.cachepaths[path] += 1
+            self.cachepaths[path].increase_path(mediatype)
             self.cachegroups[self.get_cache_group(path)] += 1
         else:
             # path NOT in cachepath >> check for cache
             group = self.get_cache_group(path)
             if group is not None:
                 # path is cache
-                self.cachepaths[path] = 1 # create
+                self.cachepaths[path] = Path(path, mediatype) # create
                 if group not in self.cachegroups.keys():
                     self.cachegroups[group] = 1    # create
                 else:
@@ -168,9 +197,9 @@ class Category:
             else:
                 # path is NOT cache
                 if path not in self.paths.keys():
-                    self.paths[path] = 1    # create
+                    self.paths[path] = Path(path, mediatype)    # create
                 else:
-                    self.paths[path] += 1   # increase
+                    self.paths[path].increase_path(mediatype)   # increase
 
     def increase_date(self, date):
         year = int(date[6:10])
@@ -261,6 +290,9 @@ class Category:
         return result[:-2] # kill last ', '
 
     def get_browsercache_total(self):
+        """
+        returns the total count of browsercache files
+        """
         sum = 0
         for c in self.cachegroups.keys():
             if c in browser_names:
@@ -269,20 +301,29 @@ class Category:
 
     def get_browsercache_sums(self):
         """
-        returns a dict with counts (value) for the specific browsers (key)
+        returns a dict with counts as Path object (value) for the specific browsers (key)
         """
         result = {}
         for c in self.cachegroups.keys():
             if c in browser_names:
-                result[c] = self.cachegroups[c]
+                result[c] = Path(self.cachegroups[c], MEDIATYPE_IGNORE)
         return result
 
     def get_thumbcache_sum(self):
+        """
+        returns the count of thumbcache files
+        """
         sum = 0
         for c in self.cachegroups.keys():
             if c in thumbcache_names:
                 sum += self.cachegroups[c]
         return sum
+
+    def get_thumbcache_obj(self):
+        """
+        returns the thumbcache count as Path object
+        """
+        return Path(self.get_thumbcache_sum(), MEDIATYPE_IGNORE)
 
 
 class PathNotFoundException(Exception):
@@ -757,15 +798,14 @@ def write_outputfile_docx():
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
-                thumbsum = cat.get_thumbcache_sum()
-                if thumbsum > 0:
-                    temppaths[name_for_thumbcache] = thumbsum
+                if cat.get_thumbcache_sum() > 0:
+                    temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
                 browser_sums = cat.get_browsercache_sums()
                 for b in browser_sums.keys():
                     temppaths[name_for_browsercache+" "+b] = browser_sums[b]
 
                 # work with the temporary pathlist incl. the thumbcache-entry
-                for k in sorted(temppaths, key=temppaths.get, reverse=True):
+                for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
                     i += 1
                     if i > number_of_showed_paths:
                         break
@@ -854,14 +894,13 @@ def write_outputfile_json():
             i = 0
             # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
             temppaths = dict(cat.paths)
-            thumbsum = cat.get_thumbcache_sum()
-            if thumbsum > 0:
-                temppaths[name_for_thumbcache] = thumbsum
+            if cat.get_thumbcache_sum() > 0:
+                temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
             browser_sums = cat.get_browsercache_sums()
             for b in browser_sums.keys():
                 temppaths[name_for_browsercache+" "+b] = browser_sums[b]
             # work with the temporary pathlist incl. the thumbcache-entry
-            for k in sorted(temppaths, key=temppaths.get, reverse=True):
+            for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
                 i += 1
                 if i > number_of_showed_paths:
                     break
@@ -954,15 +993,14 @@ def write_outputfile_txt():
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
-                thumbsum = cat.get_thumbcache_sum()
-                if thumbsum > 0:
-                    temppaths[name_for_thumbcache] = thumbsum
+                if cat.get_thumbcache_sum() > 0:
+                    temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
                 browser_sums = cat.get_browsercache_sums()
                 for b in browser_sums.keys():
                     temppaths[name_for_browsercache+" "+b] = browser_sums[b]
 
                 # work with the temporary pathlist incl. the thumbcache-entry
-                for k in sorted(temppaths, key=temppaths.get, reverse=True):
+                for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
                     i += 1
                     if i > number_of_showed_paths:
                         break
@@ -1026,20 +1064,23 @@ def write_pathdetails():
             # show paths
             # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
             temppaths = dict(cat.paths)
-            thumbsum = cat.get_thumbcache_sum()
-            if thumbsum > 0:
-                temppaths[name_for_thumbcache] = thumbsum
+            if cat.get_thumbcache_sum() > 0:
+                temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
             # work with the temporary pathlist incl. the thumbcache-entry
-            for k in sorted(temppaths, key=temppaths.get, reverse=True):
-                file_result.write("- {} >>> {}\n".format(k, str(temppaths[k])))
+            for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
+                path = temppaths[k]
+                details_text = f" (p: {path.count_pic}, v: {path.count_vid})" if path.show_details else ""
+                file_result.write(f"- {k} >>> {path.count_total} {details_text}\n")
             # if available, write other caches
             if len(cat.cachepaths)>0:
                 file_result.write(f"    > {labels['caches']} <\n")
                 for k in sorted(cat.cachegroups, key=cat.cachegroups.get, reverse=True):
-                    file_result.write("- {} >>> {}\n".format(k, str(cat.cachegroups[k])))
+                    file_result.write(f"- {k} >>> {cat.cachegroups[k]}\n")
                 file_result.write(f"    > {labels['cache_details']} <\n")
-                for k in sorted(cat.cachepaths, key=cat.cachepaths.get, reverse=True):
-                    file_result.write("- {} >>> {}\n".format(k, str(cat.cachepaths[k])))
+                for k in sorted(cat.cachepaths, key=lambda name: cat.cachepaths[name].count_total, reverse=True):
+                    path = cat.cachepaths[k]
+                    details_text = f" (p: {path.count_pic}, v: {path.count_vid})" if path.show_details else ""
+                    file_result.write(f"- {k} >>> {path.count_total} {details_text}\n")
 
         file_result.write("\n")
         # update progressbar
