@@ -1045,11 +1045,11 @@ def write_pathdetails():
             cat = devices[d].get_category(category_sort[c])
             file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
             # count & mediatype
-            file_result.write(f"{labels['quantity_filetype']}:\t\t\t\t{cat.get_counts_string()}\n")
+            file_result.write(f"{labels['quantity_filetype']}\t\t\t\t{cat.get_counts_string()}\n")
             # daterange
-            file_result.write(f"{labels['creation_on_disk']}:\t\t\t\t{cat.get_date_range_string()}\n")
+            file_result.write(f"{labels['creation_on_disk']}\t\t\t\t{cat.get_date_range_string()}\n")
             # timeline
-            file_result.write(f"{labels['distribution_in_time_period']}:\t{cat.get_grouped_dates()}\n")
+            file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_dates()}\n")
             # proportion storage <-> browser cache
             browser_total = cat.get_browsercache_total()
             counts_total = cat.get_counts()[0]
@@ -1057,9 +1057,9 @@ def write_pathdetails():
             perc_str = "{:.0f}%".format(perc)
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
-            file_result.write(f"{labels['percentage_browsercache']}:\t\t{perc_str} >>> ({labels['total']}: {counts_total}, {labels['browsercache']}: {browser_total})\n")
+            file_result.write(f"{labels['percentage_browsercache']}\t\t{perc_str} >>> ({labels['total']}: {counts_total}, {labels['browsercache']}: {browser_total})\n")
             # paths
-            file_result.write(f"{labels['locations']}:\n")
+            file_result.write(f"{labels['locations']}\n")
 
             # show paths
             # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
