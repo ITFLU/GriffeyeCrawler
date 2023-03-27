@@ -39,6 +39,7 @@
 				{ "label": "undefined_short", "text": "undef." },
 				{ "label": "defined_datefields", "text": "Defined datefields" },
 				{ "label": "defined_excludes", "text": "Defined excludes" },
+				{ "label": "thumbcaches_included", "text": "Thumbcaches included" },
 				{ "label": "caches", "text": "Caches" },
 				{ "label": "cache_details", "text": "Cache details" }
 			]
@@ -82,6 +83,7 @@
 				{ "label": "undefined_short", "text": "undef." },
 				{ "label": "defined_datefields", "text": "Definierte Datumsfelder" },
 				{ "label": "defined_excludes", "text": "Definierte Ausnahmen" },
+				{ "label": "thumbcaches_included", "text": "Vorschaubilder miteinbezogen" },
 				{ "label": "caches", "text": "Caches" },
 				{ "label": "cache_details", "text": "Cache details" }
 			]
