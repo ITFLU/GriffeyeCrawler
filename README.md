@@ -20,7 +20,10 @@ Analysiert eine exportierte Dateiliste aus Griffeye pro Gerät & Kategorie
 - Menütab *Report / Export*
 - *CSV*
 - *Illegal Files*
-  - *EXIF* - *Comment* deaktivieren
+  - Folgende Spalten deaktivieren
+    - *Exif Comment*
+    - *User Comment*
+    - *Bookmarks*
   - Für das Script benötigt (Standardeinstellungen): *Category*, *File Path*, *File Type*, *Created Date* (evtl. *Last Write Time*), *Source ID*, *MD5* (oder *SHA-1*)
 
 
@@ -70,55 +73,57 @@ positional arguments:
   file            export csv of Griffeye
 
 optional arguments:
-  -h, --help      show this help message and exit
-  -v, --version   show program's version number and exit
-  -o output       defines the output path/filename
-                  could be only a path or can include a filename too
-                  (default: input directory and input filename with the extension of the format)
-                  defines the format too based on the file extension and overwrites -f
-  -f format       defines the output format
-                  overwritten by -o if a file extension is defined
-                  possible values: docx, json, txt (default: docx)
-  -l language     language for output documents (only partially for json) in locale format (e.g. en_US, de_DE)
-                  if locale is not found, only the first part of the locale is checked (e.g. en, de)
-                  languages are based on labels.json
-                  (default from config.json)
-  -n number       number of paths to show per category
-  -s separator    defines the column separator
-                  (default: automatically detected > comma or semicolon by Griffeye)
-  --date dates    list of datefields to get the dates from separated by comma without space (case insensitive)
-                  if a date is empty (01.01.0001, 01.01.1970 or '') the next field in the list is checked
-                  needs to be wrapped in quotes if it contains a space
-                  (default from config.json)
-  --exclude path  list of textparts in the filepath field to be excluded from the analysis
-                  separated by comma without space (case insensitive)
-                  needs to be wrapped in quotes if it contains a space
-  --nodetails     don't generate the pathdetails file
+  -h, --help       show this help message and exit
+  -v, --version    show program's version number and exit
+  -o output        defines the output path/filename
+                   could be only a path or can include a filename too
+                   (default: input directory and input filename with the extension of the format)
+                   defines the format too based on the file extension and overwrites -f
+  -f format        defines the output format
+                   overwritten by -o if a file extension is defined
+                   possible values: docx, json, txt (default: docx)
+  -l language      language for output documents (only partially for json) in locale format (e.g. en_US, de_DE)
+                   if locale is not found, only the first part of the locale is checked (e.g. en, de)
+                   languages are based on labels.json
+                   (default from config.json)
+  -n number        number of paths to show per category
+  -s separator     defines the column separator
+                   (default: automatically detected > comma or semicolon by Griffeye)
+  --date dates     list of datefields to get the dates from separated by comma without space (case insensitive)
+                   if a date is empty (01.01.0001, 01.01.1970 or '') the next field in the list is checked
+                   needs to be wrapped in quotes if it contains a space
+                   (default from config.json)
+  --exclude path   list of textparts in the filepath field to be excluded from the analysis
+                   separated by comma without space (case insensitive)
+                   needs to be wrapped in quotes if it contains a space
+  --nodetails      don't generate the pathdetails file
+  --includethumbs  include thumbcaches in the process (counts & dateranges) instead of listing them separately
 ```
 
 Beispiele:
 
 - JSON erstellen mit den Datumsfeldern nach folgender Reihenfolge priorisiert: 'EXIF Datum' dann 'Letzte Änderung' dann 'Erstelldatum'
 
-  `python gc-cli.py metadata.csv --date "exif: createdate,last write time,created date" -f json`
+  `python gc-cli.py --date "exif: createdate,last write time,created date" -f json metadata.csv`
 
-- DOCX in englischer Sprache ohne Dateien in Pfaden mit 'unallocated' und 'thumbcache' im Namen erstellen
+- DOCX in englischer Sprache ohne Dateien in Pfaden mit 'unallocated' und 'unwantedfolder' im Pfadnamen erstellen
 
-  `python gc-cli.py metadata.csv --exclude unallocated,thumbcache -l en_us`
+  `python gc-cli.py --exclude unallocated,unwantedfolder -l en_us metadata.csv`
 
 - JSON mit einem neuen Namen in einem Unterordner erstellen, ohne Detail-Datei dafür mit den 10 häufigsten Speicherorten
 
-  `python gc-cli.py metadata.csv -o mysubfolder/mynew.json -n 10 --nodetails`
+  `python gc-cli.py -o mysubfolder/mynew.json -n 10 --nodetails metadata.csv`
 
 
 
 ## Allgemeine Hinweise
 - Ist die gleiche Datei mehrfach vorhanden, wird sie auch mehrfach gezählt und in den entsprechenden Tabellen angezeigt. Die anschliessend angegebene Zahl in Klammern entspricht jeweils der Anzahl gefundener Dateien ohne Duplikate (binary unique).
 - Die zusätzlich generierte Datei *{name}_pathdetails.txt* enthält sämtliche Pfade mit der Anzahl enthaltener Dateien. Bei Bedarf kann hier Ersatz für "unerwünschte" meistverwendet Pfade entnommen werden (z.B. bei Wiederholungen, etc.). Ausserdem sind die erkannten Caches mit Anzahl enthaltener Dateien sowie deren Pfade ersichtlich.
-- In Bericht werden die Vorschaubilder (`is_thumbcache: true`) gesammelt als ein einziger Eintrag angezeigt. Dasselbe gilt für die Browser-Caches (`is_browser: true`), welche jedoch pro Browser gesammelt angezeigt werden.
+- Im Bericht werden standardmässig die Vorschaubilder (`is_thumbcache: true`) separat ausgewiesen. D.h. sie werden nicht in die Auswertung (Dateianzahl, Datumsbereich etc.) miteinbezogen. Soll dies dennoch geschehen, kann die Option `--includethumbs` verwendet oder in der Konfiguration `other` - `include_thumbcache` eingestellt werden.
+- Wie bei den Vorschaubildern, werden im Bericht auch die Browser-Caches (`is_browser: true`) - jedoch pro Browser - gesammelt angezeigt.
 - Ein leeres Datum (z.B. gecarvte Dateien) wird als `undefiniert` ausgegeben. Dasselbe gilt für den Unix-Timestamp 01.01.1970.
 - Der Separator innerhalb der CSV-Datei wird aufgrund der Headerzeile ermittelt (Basierend auf Griffeye nur `;` oder `,` möglich). Es kann vorkommen, dass eine Spalte einen Separator enthält. Betroffene Spalten werden durch Griffeye in Anführungszeichen (`"`) gepackt. Dies kann normal verarbeitet werden. Wird jedoch eine CSV-Eintrag mit einer unpassenden Anzahl Semikolon ausserhalb von Anführungszeichen festgestellt, wird der entsprechende Eintrag bei der Verarbeitung ignoriert und eine entsprechende Meldung inkl. betroffener Zeilennummern ausgegeben.
-- Beim Datenexport aus Griffeye muss die Spalte *EXIF - Comment* **deaktiviert** sein. Diese kann aufgrund der teilweise exotischen Inhalte zu Problemen führen.
+- Beim Datenexport aus Griffeye müssen die Spalten *Exif Comment*, *User Comment* & *Bookmarks* **deaktiviert** sein. Diese können aufgrund der teilweise exotischen Inhalte zu Problemen führen.
 - Werte unter 1% (z.B. 0.3%) werden in der prozentuellen Verteilung als *<1%* dargestellt.
 
 

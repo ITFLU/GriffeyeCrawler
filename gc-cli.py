@@ -7,9 +7,8 @@ Analyzes an exported file list of Griffeye per device & category
 
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
-Version: 1.0
 """
-version = "1.0"
+version = "1.1"
 
 import argparse
 
@@ -398,11 +397,11 @@ def configure_argparse():
                                      epilog='''\
 Example of use
 - JSON with dates from datefields prioritized as follows: 'exif dates' then 'last write time' then 'created date'
-    python gc-cli.py metadata.csv --date "exif: createdate,last write time,created date" -f json
-- DOCX in english excluding files in pathes including the texts 'unallocated' and 'thumbcache'
-    python gc-cli.py metadata.csv --exclude unallocated,thumbcache -l en_us
+    python gc-cli.py --date "exif: createdate,last write time,created date" -f json metadata.csv
+- DOCX in english excluding files in pathes including the texts 'unallocated' and 'unwantedfolder' in the pathname
+    python gc-cli.py --exclude unallocated,unwantedfolder -l en_us metadata.csv
 - JSON with new name in subfolder without details file but with max. 10 most common paths
-    python gc-cli.py metadata.csv -o mysubfolder/mynew.json -n 10 --nodetails''')
+    python gc-cli.py -o mysubfolder/mynew.json -n 10 --nodetails metadata.csv''')
     parser.version=version
     parser.add_argument("file", type=str, help="export csv of Griffeye")    
     parser.add_argument("-v", "--version", action="version")
@@ -440,7 +439,7 @@ list of textparts in the filepath field to be excluded from the analysis
 separated by comma without space (case insensitive)
 needs to be wrapped in quotes if it contains a space''')
     parser.add_argument("--nodetails", action="store_true", help="don't generate the pathdetails file")
-    parser.add_argument("--includethumbs", action="store_true", help="include thumbcaches in the process instead of listing them separately")
+    parser.add_argument("--includethumbs", action="store_true", help="include thumbcaches in the process (counts & dateranges) instead of listing them separately")
     args = parser.parse_args()
 
 def progress(count, total, status=''):
