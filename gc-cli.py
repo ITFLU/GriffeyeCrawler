@@ -475,6 +475,8 @@ def get_titlestring(title, symbol="-", length=70):
     return symbol*symbol_count+" "+title+" "+symbol*symbol_count+addition
 
 def get_browser_percent(browser_count, total_count):
+    if total_count==0:
+        return "0%"
     perc = (browser_count/total_count)*100
     if round(perc, 0) == 0 and perc > 0:
         return "<1%"
@@ -516,7 +518,7 @@ def detect_separator(header):
 
 def check_columns(header):
     """ check for needed columns & fill columnindex-dictionary for column access with columnname """
-    cols = header[:-1].split(csv_separator)
+    cols = header.strip('\n').split(csv_separator)
     for c in config["needed_columns"]:
         # ignore datefield > checked with datefields_list
         if c["key"]=="col_date":
@@ -669,7 +671,7 @@ def write_outputfile_docx():
     # write results of file-analysis
     document.add_heading(f"GRIFFEYE-CRAWLER - {labels['result_from']} {datetime.now().strftime('%d.%m.%Y')}", 1)
     p = document.add_paragraph()
-    run = p.add_run(f"{labels['analyzed_file']}\t{input_filename}\n{labels['number_of_rows']}\t{line_count}\n{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n{labels['thumbcaches_included']}:\t{include_thumbcache}\n")
+    run = p.add_run(f"{labels['analyzed_file']}\t{input_filename}\n{labels['number_of_rows']}\t{line_count}\n{labels['defined_datefields']}\t{', '.join(datefields_list)}\n{labels['defined_excludes']}\t{', '.join(exclude_list)}\n{labels['thumbcaches_included']}\t{include_thumbcache}\n")
     run.font.name = text_fontname
     run.font.size = text_fontsize
     counter = 0
@@ -955,9 +957,9 @@ def write_outputfile_txt():
     file_result.write("="*43+"\n")
     file_result.write(f"{labels['analyzed_file']}\t{input_filename}\n")
     file_result.write(f"{labels['number_of_rows']}\t{line_count}\n")
-    file_result.write(f"{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n")
-    file_result.write(f"{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
-    file_result.write(f"{labels['thumbcaches_included']}:\t{include_thumbcache}\n")
+    file_result.write(f"{labels['defined_datefields']}\t{', '.join(datefields_list)}\n")
+    file_result.write(f"{labels['defined_excludes']}\t{', '.join(exclude_list)}\n")
+    file_result.write(f"{labels['thumbcaches_included']}\t{include_thumbcache}\n")
     file_result.write("\n")
     counter = 0
     totallength = len(devices)+1 # + total-table
@@ -979,7 +981,7 @@ def write_outputfile_txt():
             # timeline
             file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_years()}\n")
             # proportion storage <-> browser cache
-            file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
+            file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])} ({cat.get_browsercache_total()} / {cat.get_counts()[0]})\n")
         # show separated thumbcaches
         if not include_thumbcache:
             file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
@@ -1007,7 +1009,7 @@ def write_outputfile_txt():
                 # timeline
                 file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_years()}\n")
                 # proportion storage <-> browser cache
-                file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
+                file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])} ({cat.get_browsercache_total()} / {cat.get_counts()[0]})\n")
                 # paths
                 file_result.write(f"{labels['most_common_locations']}\n")
                 # show top-paths
@@ -1048,11 +1050,11 @@ def write_pathdetails():
     # write results of file-analyze
     file_result.write(f"GRIFFEYE-CRAWLER - {labels['path_details_from']} {datetime.now().strftime('%d.%m.%Y')}\n")
     file_result.write("="*47+"\n")
-    file_result.write(f"{labels['analyzed_file']}:\t{input_filename}\n")
-    file_result.write(f"{labels['number_of_rows']}:\t{line_count}\n")
-    file_result.write(f"{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n")
-    file_result.write(f"{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
-    file_result.write(f"{labels['thumbcaches_included']}:\t{include_thumbcache}\n")
+    file_result.write(f"{labels['analyzed_file']}\t{input_filename}\n")
+    file_result.write(f"{labels['number_of_rows']}\t{line_count}\n")
+    file_result.write(f"{labels['defined_datefields']}\t{', '.join(datefields_list)}\n")
+    file_result.write(f"{labels['defined_excludes']}\t{', '.join(exclude_list)}\n")
+    file_result.write(f"{labels['thumbcaches_included']}\t{include_thumbcache}\n")
     file_result.write("\n")
 
     # write results of devices
@@ -1077,7 +1079,7 @@ def write_pathdetails():
             # proportion storage <-> browser cache
             browser_total = cat.get_browsercache_total()
             counts_total = cat.get_counts()[0]
-            perc = (browser_total/counts_total)*100
+            perc = (browser_total/counts_total)*100 if counts_total > 1 else 0
             perc_str = "{:.0f}%".format(perc)
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
