@@ -7,9 +7,8 @@ Analyzes an exported file list of Griffeye per device & category
 
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
-Version: 1.0
 """
-version = "1.0"
+version = "1.1"
 
 import argparse
 
@@ -26,21 +25,27 @@ from docx.oxml.ns import qn
 from docx.enum.table import WD_ALIGN_VERTICAL
 
 
+MEDIATYPE_IMAGE = "Image"
+MEDIATYPE_VIDEO = "Video"
+MEDIATYPE_IGNORE = "ignore"
+
+
+#TODO: show thumbcaches separately...
+
 
 class Device:
-    def __init__(self, sourceid, category, initial_date):
+    """
+    class for the data per device
+    """
+    def __init__(self, sourceid):
         self.sourceid = sourceid
-        self.categories = { category: Category(category, initial_date) }
+        self.categories = {}
         self.legal_count = 0
         self.illegal_count = 0
 
-    def add_date(self, category, date):
-        if category not in self.categories.keys():
-            self.categories[category] = Category(category, date)
-        else:
-            self.categories[category].add_date(date)
-
     def add_file(self, category, path, mediatype, date, hash):
+        if category not in self.categories.keys():
+            self.categories[category] = Category(category)
         self.categories[category].add_file(path, mediatype, date, hash)
         
         # increase legal/illegal count
@@ -48,6 +53,11 @@ class Device:
             self.legal_count += 1
         else:
             self.illegal_count += 1
+
+    def add_separate_thumb(self, category, path, mediatype):
+        if category not in self.categories.keys():
+            self.categories[category] = Category(category)
+        self.categories[category].add_separate_thumb(path, mediatype)
 
     def get_sourceid(self):
         return self.sourceid
@@ -69,118 +79,135 @@ class Device:
 
 
 class Category:
-    def __init__(self, name, initial_date):
+    """
+    class for the data per category per device (included in Device)
+    """
+    def __init__(self, name):
         self.name = name
         self.legality = category_legality.get(name, True)
         self.visible = category_visibilty.get(name, True)
         self.min_date = empty_date
-        if initial_date != unix_date:
-            self.min_date = initial_date
-        self.max_date = initial_date
-        self.date_groups = {}
+        self.max_date = empty_date
+        self.year_groups = {}
         self.pic_count = 0
         self.vid_count = 0
         self.tot_count = 0
-        self.paths = {}
-        self.cachepaths = {}
-        self.cachegroups = {}
+        self.paths = {} # paths which are not in a cache (path: Path)
+        self.caches = {} # caches (name: Cache)
+        self.separate_thumbs = {} # thumbcaches if separated > --includethumbs integrates it in self.paths (path: Path)
         self.pic_hashes = set()
         self.vid_hashes = set()
 
-    def add_date(self, date):
+    def add_file(self, path, mediatype, date, hash):
+        # increase counters & add hash to 'hashes' (>> deduplicates itself)
+        self.tot_count += 1
+        if mediatype == MEDIATYPE_IMAGE:
+            self.pic_count += 1
+            self.pic_hashes.add(hash)
+        if mediatype == MEDIATYPE_VIDEO:
+            self.vid_count += 1
+            self.vid_hashes.add(hash)
+
+        self.recalculate_daterange(date)
+        self.increase_path(path, mediatype)
+        self.increase_date(date)
+
+    def add_separate_thumb(self, path, mediatype):
+        if path not in self.separate_thumbs.keys():
+            self.separate_thumbs[path] = Path(path, mediatype)
+        else:
+            self.separate_thumbs[path].increase_count(mediatype)
+
+    def get_separate_thumbs_total(self):
+        sum = 0
+        for path in self.separate_thumbs.values():
+            sum += path.count_total
+        return sum
+
+    def merge(self, merge_cat):
+        """ merges another category to this one for the device totals """
+        # merge daterange
+        self.recalculate_daterange(merge_cat.min_date)
+        self.recalculate_daterange(merge_cat.max_date)
+        # merge counts
+        self.tot_count += merge_cat.get_counts()[0]
+        self.pic_count += merge_cat.get_counts()[1]
+        self.vid_count += merge_cat.get_counts()[2]
+        # merge dategroups
+        for item in merge_cat.year_groups.items():
+            key = item[0]
+            value = item[1]
+            if key not in self.year_groups.keys():
+                self.year_groups[key] = value  # create
+            else:
+                self.year_groups[key] += value # increase
+        # merge paths
+        for path in merge_cat.paths.keys():
+            if path not in self.paths.keys():
+                self.paths[path] = merge_cat.paths[path]    # create
+            else:
+                self.paths[path].increase_object(merge_cat.paths[path])   # increase
+        # merge separate_thumbs
+        for path in merge_cat.separate_thumbs.keys():
+            if path not in self.separate_thumbs.keys():
+                self.separate_thumbs[path] = merge_cat.separate_thumbs[path]    # create
+            else:
+                self.separate_thumbs[path].increase_object(merge_cat.separate_thumbs[path])   # increase
+        # merge caches
+        for merge_cache in merge_cat.caches.values():
+            for pathname in merge_cache.paths.keys():
+                cache = self.get_cache(pathname)
+                if cache is not None:
+                    cache.add_path_object(merge_cache.paths[pathname])
+        # merge hashes
+        self.pic_hashes.update(merge_cat.pic_hashes)
+        self.vid_hashes.update(merge_cat.vid_hashes)
+
+    def recalculate_daterange(self, date):
         if date != empty_date and date != unix_date:
             if self.min_date == empty_date or date < self.min_date:
                 self.min_date = date
             if self.max_date == empty_date or date > self.max_date:
                 self.max_date = date
 
-    def add_file(self, path, mediatype, date, hash):
-        # increase counters & add hash to 'hashes' (>> deduplicates itself)
-        self.tot_count += 1
-        if mediatype == "Image":
-            self.pic_count += 1
-            self.pic_hashes.add(hash)
-        if mediatype == "Video":
-            self.vid_count += 1
-            self.vid_hashes.add(hash)
-
-        # increase path
-        self.increase_path(path)
-
-        # increase date
-        self.increase_date(date)
-
-    def merge(self, merge_cat):
-        # merge daterange
-        self.add_date(merge_cat.min_date)
-        self.add_date(merge_cat.max_date)
-        # merge counts
-        self.tot_count += merge_cat.get_counts()[0]
-        self.pic_count += merge_cat.get_counts()[1]
-        self.vid_count += merge_cat.get_counts()[2]
-        # merge dategroups
-        for item in merge_cat.date_groups.items():
-            key = item[0]
-            value = item[1]
-            if key not in self.date_groups.keys():
-                self.date_groups[key] = value  # create
-            else:
-                self.date_groups[key] += value # increase
-        # merge paths
-        for path in merge_cat.paths.keys():
-            if path not in self.paths.keys():
-                self.paths[path] = 1    # create
-            else:
-                self.paths[path] += 1   # increase
-        # merge cachepaths
-        for path in merge_cat.cachepaths.keys():
-            group = self.get_cache_group(path)
-            if group is not None:
-                if group not in self.cachegroups.keys():
-                    self.cachegroups[group] = merge_cat.cachepaths[path]    # create
-                else:
-                    self.cachegroups[group] += merge_cat.cachepaths[path]     # increase
-        # merge hashes
-        self.pic_hashes.update(merge_cat.get_pic_hashset())
-        self.vid_hashes.update(merge_cat.get_vid_hashset())
-
-    def get_cache_group(self, path):
-        for k in known_cache_paths.keys():
-            if k in path:
-                return known_cache_paths[k]
-        return None
-    
-    def increase_path(self, path):
-        if path in self.cachepaths.keys():
-            # path is in cachepath >> increase count
-            self.cachepaths[path] += 1
-            self.cachegroups[self.get_cache_group(path)] += 1
+    def increase_path(self, path, mediatype):
+        cache = self.get_cache(path)
+        if cache is not None:
+            cache.add_path(path, mediatype)
         else:
-            # path NOT in cachepath >> check for cache
-            group = self.get_cache_group(path)
-            if group is not None:
-                # path is cache
-                self.cachepaths[path] = 1 # create
-                if group not in self.cachegroups.keys():
-                    self.cachegroups[group] = 1    # create
-                else:
-                    self.cachegroups[group] += 1   # increase
+            if path not in self.paths.keys():
+                self.paths[path] = Path(path, mediatype)    # create
             else:
-                # path is NOT cache
-                if path not in self.paths.keys():
-                    self.paths[path] = 1    # create
-                else:
-                    self.paths[path] += 1   # increase
+                self.paths[path].increase_count(mediatype)   # increase
 
     def increase_date(self, date):
-        year = int(date[6:10])
+        year = int(date.strftime("%Y"))
         if year == 1 or year == 1970: # no date or unix date
             year = 9999
-        if year not in self.date_groups.keys():
-            self.date_groups[year] = 1  # create
+        if year not in self.year_groups.keys():
+            self.year_groups[year] = 1  # create
         else:
-            self.date_groups[year] += 1 # increase
+            self.year_groups[year] += 1 # increase
 
+    def get_cache(self, path):
+        for cache in self.caches.values():
+            if path in cache.paths.keys():
+                # path exists already in cache
+                return cache
+
+        # path not found in cache > check for matching patterns
+        for group in known_cache_names.values():
+            for pattern in group.patterns:
+                if pattern in path:
+                    # path matches a cache pattern
+                    if group.name in self.caches.keys():
+                        return self.caches[group.name]
+                    # cache exists not yet
+                    cache = self.Cache(group)
+                    self.caches[group.name] = cache
+                    return cache
+        return None
+    
     def get_date_range(self):
         min = self.min_date.strftime("%d.%m.%Y")
         max = self.max_date.strftime("%d.%m.%Y")
@@ -189,38 +216,22 @@ class Category:
         if max == empty_date:
             max = labels['undefined']
         return (min, max)
-        # return self.min_date.strftime("%d.%m.%Y")+" - "+self.max_date.strftime("%d.%m.%Y")
     
     def get_date_range_string(self):
         if self.min_date == empty_date or self.max_date == empty_date:
             return labels['undefined']
         return self.min_date.strftime("%d.%m.%Y")+" - "+self.max_date.strftime("%d.%m.%Y")
 
-    def get_date_range_days(self):
-        return (self.max_date - self.min_date).days + 1
-
-    def get_pic_hashset(self):
-        return self.pic_hashes
-
-    def get_vid_hashset(self):
-        return self.vid_hashes
-
     def get_unique_counts(self):
-        """
-        returns a tuple with total count, picture count & video count of binary unique files (based on the hash)
-        """
+        """ returns a tuple with total count, picture count & video count of binary unique files (based on the hash) """
         return (len(self.pic_hashes.union(self.vid_hashes)), len(self.pic_hashes), len(self.vid_hashes))
 
     def get_counts(self):
-        """
-        returns a tuple with total count, picture count & video count of the category
-        """
+        """ returns a tuple with total count, picture count & video count of the category """
         return (self.tot_count, self.pic_count, self.vid_count)
     
     def get_counts_string(self):
-        """
-        returns a string with formatted picture- & videos-count
-        """
+        """ returns a string with formatted picture- & videos-count """
         result = ""
         # pictures
         if self.pic_count > 0:
@@ -244,14 +255,12 @@ class Category:
             result += f" ({len(self.vid_hashes)})"
         return result
 
-    def get_grouped_dates(self):
-        """
-        returns a string with the percentage of illegal files per year
-        """
+    def get_grouped_years(self):
+        """ returns a string with the percentage of illegal files per year """
         result = ""
-        for year in sorted(self.date_groups.keys()):
+        for year in sorted(self.year_groups.keys()):
             # calculate percentage of total files
-            perc = (self.date_groups[year]/self.tot_count)*100
+            perc = (self.year_groups[year]/self.tot_count)*100
             if year == 9999:
                 year = labels['undefined_short']
             perc_str = "{:.0f}%".format(perc)
@@ -261,62 +270,120 @@ class Category:
         return result[:-2] # kill last ', '
 
     def get_browsercache_total(self):
+        """ returns the total count of browsercache files """
         sum = 0
-        for c in self.cachegroups.keys():
-            if c in browser_names:
-                sum += self.cachegroups[c]
+        for c in self.caches.values():
+            if c.group.is_browser:
+                sum += c.count
         return sum
 
     def get_browsercache_sums(self):
-        """
-        returns a dict with counts (value) for the specific browsers (key)
-        """
+        """ returns a dict with counts as Path object (value) for the specific browsers (key) """
         result = {}
-        for c in self.cachegroups.keys():
-            if c in browser_names:
-                result[c] = self.cachegroups[c]
+        for c in self.caches.values():
+            if c.group.is_browser:
+                result[c.name] = Path(c.name, MEDIATYPE_IGNORE)
         return result
 
     def get_thumbcache_sum(self):
+        """ returns the count of thumbcache files """
         sum = 0
-        for c in self.cachegroups.keys():
-            if c in thumbcache_names:
-                sum += self.cachegroups[c]
+        for c in self.caches.values():
+            if c.group.is_thumbcache:
+                sum += c.count
         return sum
+
+    def get_thumbcache_obj(self):
+        """ returns the thumbcache count as Path object """
+        return Path(self.get_thumbcache_sum(), MEDIATYPE_IGNORE)
+    
+    class Cache:
+        """
+        inner class of Category for the data of containing cache paths (based on CacheGroup)
+        """
+        def __init__(self, group):
+            self.name = group.name
+            self.group = group
+            self.paths = {} # path: Path
+            self.count = 0
+        
+        def add_path(self, path, mediatype=MEDIATYPE_IGNORE):
+            if path not in self.paths:
+                self.paths[path] = Path(path, mediatype)
+            else:
+                self.paths[path].increase_count(mediatype)
+            self.count += 1
+
+        def add_path_object(self, path_obj):
+            if path_obj.path not in self.paths:
+                self.paths[path_obj.path] = path_obj
+            else:
+                self.paths[path_obj.path].increase_object(path_obj)
+            self.count += path_obj.count_total
+
+
+class Path:
+    """
+    class for the counts of files (total, picture, video) in a specific path
+    """
+    def __init__(self, path, mediatype):
+        self.path = path
+        self.count_total = 0
+        self.count_pic = 0
+        self.count_vid = 0
+        self.show_details = False if mediatype==MEDIATYPE_IGNORE else True
+        self.increase_count(mediatype)
+    
+    def increase_count(self, mediatype):
+        self.count_total += 1
+        if mediatype == MEDIATYPE_IMAGE:
+            self.count_pic += 1
+        if mediatype == MEDIATYPE_VIDEO:
+            self.count_vid += 1
+        
+    def increase_object(self, path_obj):
+        self.count_total += path_obj.count_total
+        self.count_pic += path_obj.count_pic
+        self.count_vid += path_obj.count_vid
+
+
+class CacheGroup:
+    """
+    class for all existing cashes based on config.json (basic for Category/Case)
+    """
+    def __init__(self, name, is_browser, is_thumbcache):
+        self.name = name
+        self.is_browser = is_browser
+        self.is_thumbcache = is_thumbcache
+        self.patterns = []
+
+    def add_pattern(self, pattern):
+        if not pattern in self.patterns:
+            self.patterns.append(pattern)
 
 
 class PathNotFoundException(Exception):
-    """
-    error in case of a path not found
-    """
+    """ error in case of a path not found """
     def __init__(self, path):
         self.message = f"Path '{path}' not found"
 
 class ColumnNotFoundException(Exception):
-    """
-    error in case of a column name not found
-    """
+    """ error in case of a column name not found """
     def __init__(self, columnname):
         self.message = f"Column '{columnname}' not found"
 
 class SeparatorNotFoundException(Exception):
-    """
-    error in case of the column separator could not be detected
-    """
+    """ error in case of the column separator could not be detected """
     def __init__(self):
         self.message = f"Column separator could not be found... Please use option -s"
 
 class LanguageNotFoundException(Exception):
-    """
-    error in case of the language labels could not be detected
-    """
+    """ error in case of the language labels could not be detected """
     def __init__(self, language):
         self.message = f"Language '{language}' could not be found..."
 
 class LineNotValidException(Exception):
-    """
-    error in case of a csv-entry with ; in a field without " around it
-    """
+    """ error in case of a csv-entry with ; in a field without " around it """
     def __init__(self, linenumber):
         self.message = f"Line '{linenumber}' is not valid"
 
@@ -330,11 +397,11 @@ def configure_argparse():
                                      epilog='''\
 Example of use
 - JSON with dates from datefields prioritized as follows: 'exif dates' then 'last write time' then 'created date'
-    python gc-cli.py metadata.csv --date "exif: createdate,last write time,created date" -f json
-- DOCX in english excluding files in pathes including the texts 'unallocated' and 'thumbcache'
-    python gc-cli.py metadata.csv --exclude unallocated,thumbcache -l en_us
+    python gc-cli.py --date "exif: createdate,last write time,created date" -f json metadata.csv
+- DOCX in english excluding files in pathes including the texts 'unallocated' and 'unwantedfolder' in the pathname
+    python gc-cli.py --exclude unallocated,unwantedfolder -l en_us metadata.csv
 - JSON with new name in subfolder without details file but with max. 10 most common paths
-    python gc-cli.py metadata.csv -o mysubfolder/mynew.json -n 10 --nodetails''')
+    python gc-cli.py -o mysubfolder/mynew.json -n 10 --nodetails metadata.csv''')
     parser.version=version
     parser.add_argument("file", type=str, help="export csv of Griffeye")    
     parser.add_argument("-v", "--version", action="version")
@@ -372,12 +439,11 @@ list of textparts in the filepath field to be excluded from the analysis
 separated by comma without space (case insensitive)
 needs to be wrapped in quotes if it contains a space''')
     parser.add_argument("--nodetails", action="store_true", help="don't generate the pathdetails file")
+    parser.add_argument("--includethumbs", action="store_true", help="include thumbcaches in the process (counts & dateranges) instead of listing them separately")
     args = parser.parse_args()
 
 def progress(count, total, status=''):
-    """
-    handling of the progressbar
-    """
+    """ handling of the progressbar """
     bar_len = 60
     filled_len = int(round(bar_len * count / float(total)))
     percents = round(100.0 * count / float(total), 1)
@@ -387,9 +453,7 @@ def progress(count, total, status=''):
     sys.stdout.flush()
 
 def get_linecount(filename):
-    """
-    count total lines for progressbars
-    """
+    """ count total lines for progressbars """
     counter = -1
     file_input = open(filename, "r", encoding=input_encoding)
     for line in file_input:
@@ -400,9 +464,7 @@ def get_linecount(filename):
     return counter
 
 def get_titlestring(title, symbol="-", length=70):
-    """
-    creates a titleline with centered text
-    """
+    """ creates a titleline with centered text """
     half_length = (length//2)-1  # including blank
     half_title = (len(title)//2)-1  # including blank
     symbol_count = half_length-half_title
@@ -412,29 +474,17 @@ def get_titlestring(title, symbol="-", length=70):
     return symbol*symbol_count+" "+title+" "+symbol*symbol_count+addition
 
 def get_browser_percent(browser_count, total_count):
+    if total_count==0:
+        return "0%"
     perc = (browser_count/total_count)*100
     if round(perc, 0) == 0 and perc > 0:
         return "<1%"
     return "{:.0f}%".format(perc)
 
 def shorten_path(path):
-    """
-    shortens the filepath by the first two directories
-    """
+    """ shortens the filepath by the first two directories """
     first = path[path.find(os.path.sep)+1:]
     return first[first.find(os.path.sep)+1:]
-
-def detect_separator(header):
-    """
-    detect the csv separator (, or ;)
-    """
-    global csv_separator
-    if header.find(',') > -1:
-        csv_separator = ","
-    elif header.find(';') > -1:
-        csv_separator = ";"
-    else:
-        raise SeparatorNotFoundException()
 
 def get_date_field(data):
     for i in column_index.keys():
@@ -446,11 +496,28 @@ def get_date_field(data):
             return data[column_index[i]]
     return empty_date_string
 
+def is_thumbcache(path):
+    for group in known_cache_names.values():
+        if not group.is_thumbcache:
+            continue
+        for pattern in group.patterns:
+            if pattern in path:
+                return True
+    return False
+
+def detect_separator(header):
+    """ detect the csv separator (, or ;) """
+    global csv_separator
+    if header.find(',') > -1:
+        csv_separator = ","
+    elif header.find(';') > -1:
+        csv_separator = ";"
+    else:
+        raise SeparatorNotFoundException()
+
 def check_columns(header):
-    """
-    check for needed columns & fill columnindex-dictionary for column access with columnname
-    """
-    cols = header[:-1].split(csv_separator)
+    """ check for needed columns & fill columnindex-dictionary for column access with columnname """
+    cols = header.strip('\n').split(csv_separator)
     for c in config["needed_columns"]:
         # ignore datefield > checked with datefields_list
         if c["key"]=="col_date":
@@ -509,49 +576,19 @@ def convert_line(line, linenumber):
     result = result + second_part.split(csv_separator)
     return result
 
-def analyze_file(filename):
+def analyze_header(filename):
     """
     - check for needed columns & fill columnindex-dictionary
-    - collect devices & fill devicelist
-    - detect min & max date for daterange (per device)
+    - sets the column count
     """
-    counter = -1
-    file_input = open(filename, "r", encoding=input_encoding)
-    for line in file_input:
-        counter += 1
-        if counter == 0:
-            # csv-header...
-            line = line.replace("\ufeff", "")
-            if not args.s:
-                detect_separator(line)
-            check_columns(line)
-            global column_count
-            column_count = line.count(csv_separator)
-            continue
-
-        # csv-entry...
-        # get device & date from csv
-        try:
-            if line.count(csv_separator) != column_count:
-                data = convert_line(line, counter+1)
-            else:
-                data = line.split(csv_separator)
-            data_category = data[column_index['col_category']]
-            data_date = get_date_field(data)
-            current_date = datetime.strptime(data_date[0:10], "%d.%m.%Y")
-            data_device = data[column_index['col_device']]
-            # check for device or create it when needed
-            if data_device not in devices.keys():
-                devices[data_device] = Device(data_device, data_category, current_date)
-            else:
-                devices[data_device].add_date(data_category, current_date)
-        except LineNotValidException as exp:
-            invalid_lines.append(exp.args[0])
-        # update progressbar
-        progress(counter, line_count)
-
-    file_input.close()
-    return counter
+    with open(filename, "r", encoding=input_encoding) as file_input:
+        header = file_input.readline().strip('\n')
+        header = header.replace("\ufeff", "")
+        if not args.s:
+            detect_separator(header)
+        check_columns(header)
+        global column_count
+        column_count = header.count(csv_separator)
 
 def process_file():
     file_input = open(input_filename, "r", encoding=input_encoding)
@@ -559,8 +596,8 @@ def process_file():
     for line in file_input:
         exclude = False
         counter += 1
-        # ignore csv-header
         if counter == 0:
+            # ignore csv-header
             continue
 
         # get data from file
@@ -569,32 +606,40 @@ def process_file():
                 column = convert_line(line, counter+1)
             else:
                 column = line.split(csv_separator)
-            data_category = column[column_index['col_category']]
+
+            data_date = get_date_field(column)
+            date_obj = datetime.strptime(data_date[0:10], "%d.%m.%Y")
+            data_device = column[column_index['col_device']]
+            # create device when needed
+            if data_device not in devices.keys():
+                devices[data_device] = Device(data_device)
+            device = devices[data_device]
             data_path = column[column_index['col_path']]
+            data_type = column[column_index['col_type']]
+            data_category = column[column_index['col_category']]
+            # cancel if path contains exclude text
             for e in exclude_list:
                 if e.lower() in data_path.lower():
                     exclude = True
                     break
             if exclude:
                 continue
-            data_type = column[column_index['col_type']]
-            data_date = get_date_field(column)
-            data_device = column[column_index['col_device']]
+            # separate thumbcaches from "normal" paths if its a thumb
+            if not include_thumbcache and is_thumbcache(data_path):
+                device.add_separate_thumb(data_category, data_path, data_type)
+                continue
+
             data_hash = column[column_index['col_hash']]
-            # add data to device
-            device = devices[data_device]
-            device.add_file(data_category, data_path, data_type, data_date, data_hash)
+            device.add_file(data_category, data_path, data_type, date_obj, data_hash)
         except LineNotValidException as exp:
-            pass
+            invalid_lines.append(exp.args[0])
+
         # update progressbar
         progress(counter, line_count)
     file_input.close()
     return counter
 
 def calculate_device_totals():
-    """
-    calculates totals from devices
-    """
     global cat_totals
     global cat_devcount
     for d in devices:
@@ -608,7 +653,7 @@ def calculate_device_totals():
             # get/generate total category
             total_cat = None
             if dev_cat.name not in cat_totals.keys():
-                total_cat = Category(dev_cat.name, dev_cat.min_date)
+                total_cat = Category(dev_cat.name)
                 cat_totals[dev_cat.name] = total_cat
             else:
                 total_cat = cat_totals[dev_cat.name]
@@ -625,7 +670,7 @@ def write_outputfile_docx():
     # write results of file-analysis
     document.add_heading(f"GRIFFEYE-CRAWLER - {labels['result_from']} {datetime.now().strftime('%d.%m.%Y')}", 1)
     p = document.add_paragraph()
-    run = p.add_run(f"{labels['analyzed_file']}\t{input_filename}\n{labels['number_of_rows']}\t{line_count}\n{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
+    run = p.add_run(f"{labels['analyzed_file']}\t{input_filename}\n{labels['number_of_rows']}\t{line_count}\n{labels['defined_datefields']}\t{', '.join(datefields_list)}\n{labels['defined_excludes']}\t{', '.join(exclude_list)}\n{labels['thumbcaches_included']}\t{include_thumbcache}\n")
     run.font.name = text_fontname
     run.font.size = text_fontsize
     counter = 0
@@ -674,11 +719,16 @@ def write_outputfile_docx():
             # timeline
             row_cells = table.add_row().cells
             row_cells[0].text = f"{labels['distribution_in_time_period']}"
-            row_cells[1].text = f"{cat.get_grouped_dates()}"
+            row_cells[1].text = f"{cat.get_grouped_years()}"
             # proportion storage <-> browser cache
             row_cells = table.add_row().cells
             row_cells[0].text = f"{labels['percentage_browsercache']}"
             row_cells[1].text = f"{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}"
+            # show separated thumbcaches
+            if not include_thumbcache:
+                row_cells = table.add_row().cells
+                row_cells[0].text = f"{labels['thumbcaches']}"
+                row_cells[1].text = f"{cat.get_separate_thumbs_total()}"
         
         # format table
         for row in table.rows[1:]:
@@ -744,7 +794,7 @@ def write_outputfile_docx():
                 # timeline
                 row_cells = table.add_row().cells
                 row_cells[0].text = f"{labels['distribution_in_time_period']}"
-                row_cells[1].text = f"{cat.get_grouped_dates()}"
+                row_cells[1].text = f"{cat.get_grouped_years()}"
                 # proportion storage <-> browser cache
                 row_cells = table.add_row().cells
                 row_cells[0].text = f"{labels['percentage_browsercache']}"
@@ -757,15 +807,14 @@ def write_outputfile_docx():
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
-                thumbsum = cat.get_thumbcache_sum()
-                if thumbsum > 0:
-                    temppaths[name_for_thumbcache] = thumbsum
+                if cat.get_thumbcache_sum() > 0:
+                    temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
                 browser_sums = cat.get_browsercache_sums()
                 for b in browser_sums.keys():
                     temppaths[name_for_browsercache+" "+b] = browser_sums[b]
 
                 # work with the temporary pathlist incl. the thumbcache-entry
-                for k in sorted(temppaths, key=temppaths.get, reverse=True):
+                for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
                     i += 1
                     if i > number_of_showed_paths:
                         break
@@ -773,6 +822,12 @@ def write_outputfile_docx():
                         rows += "\n"
                     rows += f"- {shorten_path(k)}"
                 row_cells[1].text = rows
+
+                 # show separated thumbcaches
+                if not include_thumbcache:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = f"{labels['thumbcaches']}"
+                    row_cells[1].text = f"{cat.get_separate_thumbs_total()}"
             
             # format table
             for row in table.rows[1:]:
@@ -801,7 +856,8 @@ def write_outputfile_json():
             "analyzed_file": input_filename,
             "row_count": line_count,
             "defined_datefields": ', '.join(datefields_list),
-            "defined_excludes": ', '.join(exclude_list)
+            "defined_excludes": ', '.join(exclude_list),
+            "thumbcaches_included": include_thumbcache
         }
     }
 
@@ -828,8 +884,9 @@ def write_outputfile_json():
                 "creation_summary": cat.get_date_range_string(),
                 "creation_startdate": dates[0],
                 "creation_enddate": dates[1],
-                "distribution_over_time": cat.get_grouped_dates(),
-                "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])
+                "distribution_over_time": cat.get_grouped_years(),
+                "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]),
+                "separate_thumbcaches": cat.get_separate_thumbs_total()
             })
     # update progressbar with total
     counter += 1
@@ -854,14 +911,13 @@ def write_outputfile_json():
             i = 0
             # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
             temppaths = dict(cat.paths)
-            thumbsum = cat.get_thumbcache_sum()
-            if thumbsum > 0:
-                temppaths[name_for_thumbcache] = thumbsum
+            if cat.get_thumbcache_sum() > 0:
+                temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
             browser_sums = cat.get_browsercache_sums()
             for b in browser_sums.keys():
                 temppaths[name_for_browsercache+" "+b] = browser_sums[b]
             # work with the temporary pathlist incl. the thumbcache-entry
-            for k in sorted(temppaths, key=temppaths.get, reverse=True):
+            for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
                 i += 1
                 if i > number_of_showed_paths:
                     break
@@ -878,9 +934,10 @@ def write_outputfile_json():
                     "creation_summary": cat.get_date_range_string(),
                     "creation_startdate": dates[0],
                     "creation_enddate": dates[1],
-                    "distribution_over_time": cat.get_grouped_dates(),
+                    "distribution_over_time": cat.get_grouped_years(),
                     "percentage_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]),
-                    "most_common_locations": loc_list
+                    "most_common_locations": loc_list,
+                    "separate_thumbcaches": cat.get_separate_thumbs_total()
                 })
         # add device object to list of devices
         json_obj["per_device"].append(dev_obj)
@@ -899,8 +956,9 @@ def write_outputfile_txt():
     file_result.write("="*43+"\n")
     file_result.write(f"{labels['analyzed_file']}\t{input_filename}\n")
     file_result.write(f"{labels['number_of_rows']}\t{line_count}\n")
-    file_result.write(f"{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n")
-    file_result.write(f"{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
+    file_result.write(f"{labels['defined_datefields']}\t{', '.join(datefields_list)}\n")
+    file_result.write(f"{labels['defined_excludes']}\t{', '.join(exclude_list)}\n")
+    file_result.write(f"{labels['thumbcaches_included']}\t{include_thumbcache}\n")
     file_result.write("\n")
     counter = 0
     totallength = len(devices)+1 # + total-table
@@ -920,9 +978,12 @@ def write_outputfile_txt():
             # daterange
             file_result.write(f"{labels['creation_on_disk']}\t{cat.get_date_range_string()}\n")
             # timeline
-            file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_dates()}\n")
+            file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_years()}\n")
             # proportion storage <-> browser cache
-            file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
+            file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])} ({cat.get_browsercache_total()} / {cat.get_counts()[0]})\n")
+        # show separated thumbcaches
+        if not include_thumbcache:
+            file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
     file_result.write("\n")
 
     counter += 1
@@ -945,29 +1006,30 @@ def write_outputfile_txt():
                 # daterange
                 file_result.write(f"{labels['creation_on_disk']}\t\t\t\t{cat.get_date_range_string()}\n")
                 # timeline
-                file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_dates()}\n")
+                file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_years()}\n")
                 # proportion storage <-> browser cache
-                file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
+                file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])} ({cat.get_browsercache_total()} / {cat.get_counts()[0]})\n")
                 # paths
                 file_result.write(f"{labels['most_common_locations']}\n")
                 # show top-paths
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
-                thumbsum = cat.get_thumbcache_sum()
-                if thumbsum > 0:
-                    temppaths[name_for_thumbcache] = thumbsum
+                if cat.get_thumbcache_sum() > 0:
+                    temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
                 browser_sums = cat.get_browsercache_sums()
                 for b in browser_sums.keys():
                     temppaths[name_for_browsercache+" "+b] = browser_sums[b]
 
                 # work with the temporary pathlist incl. the thumbcache-entry
-                for k in sorted(temppaths, key=temppaths.get, reverse=True):
+                for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
                     i += 1
                     if i > number_of_showed_paths:
                         break
                     file_result.write(f"- {shorten_path(k)}\n")
-
+                # show separated thumbcaches
+                if not include_thumbcache:
+                    file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
         file_result.write("\n")
         # update progressbar
         progress(counter, totallength)
@@ -987,10 +1049,11 @@ def write_pathdetails():
     # write results of file-analyze
     file_result.write(f"GRIFFEYE-CRAWLER - {labels['path_details_from']} {datetime.now().strftime('%d.%m.%Y')}\n")
     file_result.write("="*47+"\n")
-    file_result.write(f"{labels['analyzed_file']}:\t{input_filename}\n")
-    file_result.write(f"{labels['number_of_rows']}:\t{line_count}\n")
-    file_result.write(f"{labels['defined_datefields']}:\t{', '.join(datefields_list)}\n")
-    file_result.write(f"{labels['defined_excludes']}:\t{', '.join(exclude_list)}\n")
+    file_result.write(f"{labels['analyzed_file']}\t{input_filename}\n")
+    file_result.write(f"{labels['number_of_rows']}\t{line_count}\n")
+    file_result.write(f"{labels['defined_datefields']}\t{', '.join(datefields_list)}\n")
+    file_result.write(f"{labels['defined_excludes']}\t{', '.join(exclude_list)}\n")
+    file_result.write(f"{labels['thumbcaches_included']}\t{include_thumbcache}\n")
     file_result.write("\n")
 
     # write results of devices
@@ -1007,39 +1070,53 @@ def write_pathdetails():
             cat = devices[d].get_category(category_sort[c])
             file_result.write("\n{}\n".format(get_titlestring(cat.name, "\u0387")))
             # count & mediatype
-            file_result.write(f"{labels['quantity_filetype']}:\t\t\t\t{cat.get_counts_string()}\n")
+            file_result.write(f"{labels['quantity_filetype']}\t\t\t\t{cat.get_counts_string()}\n")
             # daterange
-            file_result.write(f"{labels['creation_on_disk']}:\t\t\t\t{cat.get_date_range_string()}\n")
+            file_result.write(f"{labels['creation_on_disk']}\t\t\t\t{cat.get_date_range_string()}\n")
             # timeline
-            file_result.write(f"{labels['distribution_in_time_period']}:\t{cat.get_grouped_dates()}\n")
+            file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_years()}\n")
             # proportion storage <-> browser cache
             browser_total = cat.get_browsercache_total()
             counts_total = cat.get_counts()[0]
-            perc = (browser_total/counts_total)*100
+            perc = (browser_total/counts_total)*100 if counts_total > 1 else 0
             perc_str = "{:.0f}%".format(perc)
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
-            file_result.write(f"{labels['percentage_browsercache']}:\t\t{perc_str} >>> ({labels['total']}: {counts_total}, {labels['browsercache']}: {browser_total})\n")
+            file_result.write(f"{labels['percentage_browsercache']}\t\t{perc_str} >>> ({labels['total']}: {counts_total}, {labels['browsercache']}: {browser_total})\n")
             # paths
-            file_result.write(f"{labels['locations']}:\n")
-
+            file_result.write(f"{labels['locations']}\n")
             # show paths
             # copy the pathlist and add a thumbcache-entry with the total sum to the temporary copy
             temppaths = dict(cat.paths)
-            thumbsum = cat.get_thumbcache_sum()
-            if thumbsum > 0:
-                temppaths[name_for_thumbcache] = thumbsum
+            if cat.get_thumbcache_sum() > 0:
+                temppaths[name_for_thumbcache] = cat.get_thumbcache_obj()
             # work with the temporary pathlist incl. the thumbcache-entry
-            for k in sorted(temppaths, key=temppaths.get, reverse=True):
-                file_result.write("- {} >>> {}\n".format(k, str(temppaths[k])))
+            for k in sorted(temppaths, key=lambda name: temppaths[name].count_total, reverse=True):
+                path = temppaths[k]
+                details_text = f" (p: {path.count_pic}, v: {path.count_vid})" if path.show_details else ""
+                file_result.write(f"- {k} >>> {path.count_total} {details_text}\n")
+            # separated thumbcaches
+            if not include_thumbcache:
+                file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
+                for p in sorted(cat.separate_thumbs, key=lambda path: cat.separate_thumbs[path].count_total, reverse=True):
+                    path = cat.separate_thumbs[p]
+                    details_text = f" (p: {path.count_pic}, v: {path.count_vid})" if path.show_details else ""
+                    file_result.write(f"- {p} >>> {path.count_total} {details_text}\n")
             # if available, write other caches
-            if len(cat.cachepaths)>0:
+            if len(cat.caches)>0:
                 file_result.write(f"    > {labels['caches']} <\n")
-                for k in sorted(cat.cachegroups, key=cat.cachegroups.get, reverse=True):
-                    file_result.write("- {} >>> {}\n".format(k, str(cat.cachegroups[k])))
+                sorted_caches = []
+                for cache in sorted(cat.caches.values(), key=lambda c: cat.caches[c.name].count, reverse=True):
+                    sorted_caches.append(cache)
+
+                for cache in sorted_caches:
+                    file_result.write(f"- {cache.name} >>> {cache.count}\n")
                 file_result.write(f"    > {labels['cache_details']} <\n")
-                for k in sorted(cat.cachepaths, key=cat.cachepaths.get, reverse=True):
-                    file_result.write("- {} >>> {}\n".format(k, str(cat.cachepaths[k])))
+                for cache in sorted_caches:
+                    file_result.write(f"{cache.name}\n")
+                    for path in sorted(cache.paths.values(), key=lambda p: p.count_total, reverse=True):
+                        details_text = f" (p: {path.count_pic}, v: {path.count_vid})" if path.show_details else ""
+                        file_result.write(f"- {path.path} >>> {path.count_total} {details_text}\n")
 
         file_result.write("\n")
         # update progressbar
@@ -1059,9 +1136,9 @@ def read_config():
     global category_visibilty
     global category_sort
     global known_cache_paths
-    global browser_names
-    global thumbcache_names
+    global known_cache_names
     global number_of_showed_paths
+    global include_thumbcache
 
     with open('config.json', 'r', encoding='utf-8') as c:
         data = c.read()
@@ -1074,17 +1151,18 @@ def read_config():
         category_visibilty[cat["name"]] = cat["show_in_report"]
         category_sort[cat["sort"]] = cat["name"]
     for cac in config["caches"]:
-        known_cache_paths[cac["path"]] = cac["name"]
-        if cac["is_browser"] and cac["name"] not in browser_names:
-            browser_names.append(cac["name"])
-        if cac["is_thumbcache"] and cac["name"] not in thumbcache_names:
-            thumbcache_names.append(cac["name"])
+        name = cac["name"]
+        known_cache_paths[cac["path"]] = name
+        if name not in known_cache_names:
+            known_cache_names[name] = CacheGroup(name, cac["is_browser"], cac["is_thumbcache"])
+        group = known_cache_names[name]
+        group.add_pattern(cac["path"])
+
     number_of_showed_paths = config["result"]["number_of_showed_paths"]
+    include_thumbcache = config["other"]["include_thumbcache"]
 
 def read_labels():
-    """
-    read labels for multi language support from labels.json
-    """
+    """ read labels for multi language support from labels.json """
     global labels
     global result_language
     done = False
@@ -1212,9 +1290,11 @@ category_legality = {}
 category_visibilty = {}
 category_sort = {}
 known_cache_paths = {}
-browser_names = []
-thumbcache_names = []
+known_cache_names = {}
+# browser_names = []
+# thumbcache_names = []
 number_of_showed_paths = 0
+include_thumbcache = False
 
 # init argparse
 args = None
@@ -1235,6 +1315,8 @@ try:
     csv_separator = args.s if args.s else csv_separator
     # set number of showed paths from options
     number_of_showed_paths = args.n if args.n else number_of_showed_paths
+    # set number of showed paths from options
+    include_thumbcache = args.includethumbs if args.includethumbs else include_thumbcache
     # set language from options
     result_language = args.l if args.l else result_language
     read_labels()
@@ -1244,8 +1326,10 @@ try:
     generate_exclude_list()
 
     # analyze file
-    print(f"Analyzing file '{input_filename}'...")
-    analyze_file(input_filename)
+    analyze_header(input_filename)
+    # process data
+    print(f"Processing records in '{input_filename}'...")
+    processed = process_file()
     if len(invalid_lines) > 0:
         print()
         print("  [i] Invalid rows detected in CSV and ignored in processing")
@@ -1254,12 +1338,7 @@ try:
             print(l, end="  ")
         print()
     print()
-
-    # process data
-    print("Processing records...")
-    processed = process_file()
     calculate_device_totals()
-    print()
 
     # write output-files
     print("Write result files...")
