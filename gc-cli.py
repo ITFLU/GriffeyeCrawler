@@ -8,7 +8,7 @@ Analyzes an exported file list of Griffeye per device & category
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
 """
-version = "1.1"
+version = "1.1.1"
 
 import argparse
 
@@ -28,9 +28,6 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 MEDIATYPE_IMAGE = "Image"
 MEDIATYPE_VIDEO = "Video"
 MEDIATYPE_IGNORE = "ignore"
-
-
-#TODO: show thumbcaches separately...
 
 
 class Device:
@@ -253,6 +250,8 @@ class Category:
                 result += labels['video']
             # binary unique
             result += f" ({len(self.vid_hashes)})"
+        if result == "":
+            return "0"
         return result
 
     def get_grouped_years(self):
@@ -267,6 +266,8 @@ class Category:
             if round(perc, 0) == 0 and perc > 0:
                 perc_str = "<1%"
             result = result+"{}: {}, ".format(year, perc_str)
+        if result == "":
+            return "-"
         return result[:-2] # kill last ', '
 
     def get_browsercache_total(self):
@@ -592,11 +593,11 @@ def analyze_header(filename):
 
 def process_file():
     file_input = open(input_filename, "r", encoding=input_encoding)
-    counter = -1
+    counter = 0
     for line in file_input:
         exclude = False
         counter += 1
-        if counter == 0:
+        if counter == 1:
             # ignore csv-header
             continue
 
@@ -729,6 +730,10 @@ def write_outputfile_docx():
                 row_cells = table.add_row().cells
                 row_cells[0].text = f"{labels['thumbcaches']}"
                 row_cells[1].text = f"{cat.get_separate_thumbs_total()}"
+                cellshade = OxmlElement("w:shd")
+                cellshade.set(qn("w:fill"), "#CCCCCC")
+                cellprop = row_cells[1]._tc.get_or_add_tcPr()
+                cellprop.append(cellshade)
         
         # format table
         for row in table.rows[1:]:
@@ -821,6 +826,8 @@ def write_outputfile_docx():
                     if i > 1:
                         rows += "\n"
                     rows += f"- {shorten_path(k)}"
+                if len(temppaths) == 0:
+                    rows = "-"
                 row_cells[1].text = rows
 
                  # show separated thumbcaches
@@ -980,7 +987,7 @@ def write_outputfile_txt():
             # timeline
             file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_years()}\n")
             # proportion storage <-> browser cache
-            file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])} ({cat.get_browsercache_total()} / {cat.get_counts()[0]})\n")
+            file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
         # show separated thumbcaches
         if not include_thumbcache:
             file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
@@ -1008,9 +1015,12 @@ def write_outputfile_txt():
                 # timeline
                 file_result.write(f"{labels['distribution_in_time_period']}\t{cat.get_grouped_years()}\n")
                 # proportion storage <-> browser cache
-                file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])} ({cat.get_browsercache_total()} / {cat.get_counts()[0]})\n")
+                file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
                 # paths
-                file_result.write(f"{labels['most_common_locations']}\n")
+                file_result.write(f"{labels['most_common_locations']}")
+                if len(cat.paths) == 0:
+                    file_result.write("\t-")
+                file_result.write("\n")
                 # show top-paths
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
@@ -1062,7 +1072,10 @@ def write_pathdetails():
         counter += 1
         file_result.write("\n{}\n".format(get_titlestring(d, "=")))
         file_result.write(f"{devices[d].get_counts()[0]} {labels['files']} ({labels['legal']}: {devices[d].get_counts()[1]}, {labels['illegal']}: {devices[d].get_counts()[2]})")
-        file_result.write("  >>  {:.2f}% {}\n".format((devices[d].get_counts()[2]/devices[d].get_counts()[0])*100, labels['illegal']))
+        if (devices[d].get_counts()[0]==0):
+            file_result.write("  >>  0%")
+        else:
+            file_result.write("  >>  {:.2f}% {}\n".format((devices[d].get_counts()[2]/devices[d].get_counts()[0])*100, labels['illegal']))
         for c in sorted(category_sort.keys()):
             if category_sort[c] not in devices[d].categories:
                 continue

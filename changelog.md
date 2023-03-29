@@ -1,11 +1,17 @@
 # GriffeyeCrawler - Changelog
 
-## Version 1.1 - 28.03.2023
+## Version 1.1.1 - 28.03.2023
+- Update: Leere Kategorie-Tabellen werden nun mit "-" gefüllt
+- Update: Zur besseren Übersicht wird in DOCX die Vorschaubilder-Anzahl in den Total-Tabellen farblich hervorgehoben
+- Bugfix: DivisionByZero fixed
+- Bugfix: Problem bei der Darstellung der Prozentzahl im Progressbar behoben
+
+## Version 1.1.0 - 28.03.2023
 - Feature: Thumbcaches werden nun standardmässig vom Prozess ausgeschlossen und separat ausgewiesen (#20)
 - Feature: In den Pathdetails sind nun auch die Anzahl Bilder & Videos pro Pfad ersichtlich (#21)
 - Feature: Code reorganisiert und die Verarbeitung beschleunigt
 
-## Version 1.0 - 01.03.2023
+## Version 1.0.0 - 01.03.2023
 Umstellung auf CLI-Version und "UI" für Standardfälle
 - Feature: Möglichkeit zur Angabe der zu verwendenden Datum-Felder
 - Feature: Möglichkeit zum Auschluss unerwünschter Pfade
