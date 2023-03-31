@@ -880,7 +880,7 @@ def write_outputfile_json():
         t_counts = cat.get_counts()
         u_counts = cat.get_unique_counts()
         dates = cat.get_date_range()
-        json_obj["total_over_all_devices"].append({
+        tmp_obj = {
                 "category": cat.name,
                 "count_summary": cat.get_counts_string(),
                 "picture_count": t_counts[1],
@@ -892,9 +892,11 @@ def write_outputfile_json():
                 "creation_startdate": dates[0],
                 "creation_enddate": dates[1],
                 "distribution_over_time": cat.get_grouped_years(),
-                "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]),
-                "separate_thumbcaches": cat.get_separate_thumbs_total()
-            })
+                "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])
+            }
+        if not include_thumbcache:
+            tmp_obj["separate_thumbcaches"] = cat.get_separate_thumbs_total()
+        json_obj["total_over_all_devices"].append(tmp_obj)
     # update progressbar with total
     counter += 1
     progress(counter, totallength)
@@ -931,7 +933,7 @@ def write_outputfile_json():
                 loc_list.append(f"{shorten_path(k)}")
 
             # create device object
-            dev_obj["categories"].append({
+            tmp_obj = {
                     "category": cat.name,
                     "count_summary": cat.get_counts_string(),
                     "picture_count": t_counts[1],
@@ -943,9 +945,11 @@ def write_outputfile_json():
                     "creation_enddate": dates[1],
                     "distribution_over_time": cat.get_grouped_years(),
                     "percentage_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]),
-                    "most_common_locations": loc_list,
-                    "separate_thumbcaches": cat.get_separate_thumbs_total()
-                })
+                    "most_common_locations": loc_list
+                }
+            if not include_thumbcache:
+                tmp_obj["separate_thumbcaches"] = cat.get_separate_thumbs_total()
+            dev_obj["categories"].append(tmp_obj)
         # add device object to list of devices
         json_obj["per_device"].append(dev_obj)
         # update progressbar
