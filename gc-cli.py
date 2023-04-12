@@ -8,7 +8,7 @@ Analyzes an exported file list of Griffeye per device & category
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
 """
-version = "1.1.1"
+version = "1.2"
 
 import argparse
 
@@ -672,6 +672,8 @@ def write_outputfile_docx():
     text_fontsize = Pt(11)
     table_fontsize = Pt(8)
     table_rowheight = Pt(14)
+    table_colwidth = Pt(160)
+    table_2ndcol = Pt(280)
 
     document = Document()
     # write results of file-analysis
@@ -695,10 +697,12 @@ def write_outputfile_docx():
         hdr_cells = table.rows[0].cells
         # cell merging
         hdr_cells[0].text = cat.name
+        hdr_cells[0].width = table_colwidth
         datentr = labels['on_1_disk']
         if cat_devcount[category_sort[c]] > 1:
             datentr = labels['on_x_disks']
         hdr_cells[1].text = f"{cat.get_counts_string()} {labels['x_on_x']} {cat_devcount[category_sort[c]]} {datentr}"
+        hdr_cells[1].width = table_2ndcol
         # background color
         cellshade = OxmlElement("w:shd")
         cellshade.set(qn("w:fill"), "#CCCCCC")
@@ -745,6 +749,8 @@ def write_outputfile_docx():
         for row in table.rows[1:]:
             i=-1
             row.height = table_rowheight
+            row.cells[0].width = table_colwidth
+            row.cells[1].width = table_2ndcol
             for cell in row.cells:
                 i+=1
                 # cell alignment
@@ -812,9 +818,13 @@ def write_outputfile_docx():
                 row_cells[1].text = f"{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}"
                 # paths
                 row_cells = table.add_row().cells
-                row_cells[0].text = f"{labels['most_common_locations']}"
+                # cell merging
+                row_cells[0].merge(row_cells[1])
                 # show top-paths
-                rows = ""
+                title_paragraph = row_cells[0].paragraphs[0].add_run(f"{labels['most_common_locations']}")
+                title_paragraph.font.name = text_fontname
+                title_paragraph.font.size = table_fontsize
+                title_paragraph.font.bold = True
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
@@ -829,12 +839,15 @@ def write_outputfile_docx():
                     i += 1
                     if i > number_of_showed_paths:
                         break
-                    if i > 1:
-                        rows += "\n"
-                    rows += f"- {shorten_path(k)}"
+                    row_paragraph = row_cells[0].paragraphs[0].add_run(f"\n- {shorten_path(k)}")
+                    row_paragraph.font.name = text_fontname
+                    row_paragraph.font.size = table_fontsize
+                    row_paragraph.font.bold = False
                 if len(temppaths) == 0:
-                    rows = "-"
-                row_cells[1].text = rows
+                    row_paragraph = row_cells[0].paragraphs[0].add_run(f"\n-")
+                    row_paragraph.font.name = text_fontname
+                    row_paragraph.font.size = table_fontsize
+                    row_paragraph.font.bold = False
 
                  # show separated thumbcaches
                 if not include_thumbcache:
@@ -843,20 +856,25 @@ def write_outputfile_docx():
                     row_cells[1].text = f"{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})"
             
             # format table
+            r = 1
             for row in table.rows[1:]:
-                i=-1
+                r+=1
+                c=-1
                 row.height = table_rowheight
                 for cell in row.cells:
-                    i+=1
+                    c+=1
                     # cell alignment
                     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                     # font
                     run = cell.paragraphs[0].runs[0]
                     run.font.name = text_fontname
                     run.font.size = table_fontsize
-                    if i == 0:
+                    if r != 6 and c == 0: # ignore 'most common locations'
                         # name-column bold
                         run.font.bold = True
+                        cell.width = table_colwidth
+                    if r != 6 and c == 1: # ignore 'most common locations'
+                        cell.width = table_2ndcol
             document.add_paragraph().paragraph_format.space_after = Pt(0)
 
         progress(counter, totallength)
