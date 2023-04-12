@@ -8,7 +8,7 @@ Analyzes an exported file list of Griffeye per device & category
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
 """
-version = "1.1.1"
+version = "1.2"
 
 import argparse
 
@@ -51,10 +51,10 @@ class Device:
         else:
             self.illegal_count += 1
 
-    def add_separate_thumb(self, category, path, mediatype):
+    def add_separate_thumb(self, category, path, mediatype, hash):
         if category not in self.categories.keys():
             self.categories[category] = Category(category)
-        self.categories[category].add_separate_thumb(path, mediatype)
+        self.categories[category].add_separate_thumb(path, mediatype, hash)
 
     def get_sourceid(self):
         return self.sourceid
@@ -92,6 +92,7 @@ class Category:
         self.paths = {} # paths which are not in a cache (path: Path)
         self.caches = {} # caches (name: Cache)
         self.separate_thumbs = {} # thumbcaches if separated > --includethumbs integrates it in self.paths (path: Path)
+        self.separate_thumbs_hashes = set()
         self.pic_hashes = set()
         self.vid_hashes = set()
 
@@ -109,17 +110,21 @@ class Category:
         self.increase_path(path, mediatype)
         self.increase_date(date)
 
-    def add_separate_thumb(self, path, mediatype):
+    def add_separate_thumb(self, path, mediatype, hash):
         if path not in self.separate_thumbs.keys():
             self.separate_thumbs[path] = Path(path, mediatype)
         else:
             self.separate_thumbs[path].increase_count(mediatype)
+        self.separate_thumbs_hashes.add(hash)
 
     def get_separate_thumbs_total(self):
         sum = 0
         for path in self.separate_thumbs.values():
             sum += path.count_total
         return sum
+    
+    def get_separate_thumbs_total_unique(self):
+        return len(self.separate_thumbs_hashes)
 
     def merge(self, merge_cat):
         """ merges another category to this one for the device totals """
@@ -159,6 +164,7 @@ class Category:
         # merge hashes
         self.pic_hashes.update(merge_cat.pic_hashes)
         self.vid_hashes.update(merge_cat.vid_hashes)
+        self.separate_thumbs_hashes.update(merge_cat.separate_thumbs_hashes)
 
     def recalculate_daterange(self, date):
         if date != empty_date and date != unix_date:
@@ -618,6 +624,7 @@ def process_file():
             data_path = column[column_index['col_path']]
             data_type = column[column_index['col_type']]
             data_category = column[column_index['col_category']]
+            data_hash = column[column_index['col_hash']]
             # cancel if path contains exclude text
             for e in exclude_list:
                 if e.lower() in data_path.lower():
@@ -627,10 +634,9 @@ def process_file():
                 continue
             # separate thumbcaches from "normal" paths if its a thumb
             if not include_thumbcache and is_thumbcache(data_path):
-                device.add_separate_thumb(data_category, data_path, data_type)
+                device.add_separate_thumb(data_category, data_path, data_type, data_hash)
                 continue
 
-            data_hash = column[column_index['col_hash']]
             device.add_file(data_category, data_path, data_type, date_obj, data_hash)
         except LineNotValidException as exp:
             invalid_lines.append(exp.args[0])
@@ -666,6 +672,8 @@ def write_outputfile_docx():
     text_fontsize = Pt(11)
     table_fontsize = Pt(8)
     table_rowheight = Pt(14)
+    table_colwidth = Pt(160)
+    table_2ndcol = Pt(280)
 
     document = Document()
     # write results of file-analysis
@@ -689,10 +697,12 @@ def write_outputfile_docx():
         hdr_cells = table.rows[0].cells
         # cell merging
         hdr_cells[0].text = cat.name
+        hdr_cells[0].width = table_colwidth
         datentr = labels['on_1_disk']
         if cat_devcount[category_sort[c]] > 1:
             datentr = labels['on_x_disks']
         hdr_cells[1].text = f"{cat.get_counts_string()} {labels['x_on_x']} {cat_devcount[category_sort[c]]} {datentr}"
+        hdr_cells[1].width = table_2ndcol
         # background color
         cellshade = OxmlElement("w:shd")
         cellshade.set(qn("w:fill"), "#CCCCCC")
@@ -729,7 +739,7 @@ def write_outputfile_docx():
             if not include_thumbcache:
                 row_cells = table.add_row().cells
                 row_cells[0].text = f"{labels['thumbcaches']}"
-                row_cells[1].text = f"{cat.get_separate_thumbs_total()}"
+                row_cells[1].text = f"{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})"
                 cellshade = OxmlElement("w:shd")
                 cellshade.set(qn("w:fill"), "#CCCCCC")
                 cellprop = row_cells[1]._tc.get_or_add_tcPr()
@@ -739,6 +749,8 @@ def write_outputfile_docx():
         for row in table.rows[1:]:
             i=-1
             row.height = table_rowheight
+            row.cells[0].width = table_colwidth
+            row.cells[1].width = table_2ndcol
             for cell in row.cells:
                 i+=1
                 # cell alignment
@@ -806,9 +818,13 @@ def write_outputfile_docx():
                 row_cells[1].text = f"{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}"
                 # paths
                 row_cells = table.add_row().cells
-                row_cells[0].text = f"{labels['most_common_locations']}"
+                # cell merging
+                row_cells[0].merge(row_cells[1])
                 # show top-paths
-                rows = ""
+                title_paragraph = row_cells[0].paragraphs[0].add_run(f"{labels['most_common_locations']}")
+                title_paragraph.font.name = text_fontname
+                title_paragraph.font.size = table_fontsize
+                title_paragraph.font.bold = True
                 i = 0
                 # copy the pathlist and add a thumbcache- and browsercache-entries with the total sums to the temporary copy
                 temppaths = dict(cat.paths)
@@ -823,34 +839,42 @@ def write_outputfile_docx():
                     i += 1
                     if i > number_of_showed_paths:
                         break
-                    if i > 1:
-                        rows += "\n"
-                    rows += f"- {shorten_path(k)}"
+                    row_paragraph = row_cells[0].paragraphs[0].add_run(f"\n- {shorten_path(k)}")
+                    row_paragraph.font.name = text_fontname
+                    row_paragraph.font.size = table_fontsize
+                    row_paragraph.font.bold = False
                 if len(temppaths) == 0:
-                    rows = "-"
-                row_cells[1].text = rows
+                    row_paragraph = row_cells[0].paragraphs[0].add_run(f"\n-")
+                    row_paragraph.font.name = text_fontname
+                    row_paragraph.font.size = table_fontsize
+                    row_paragraph.font.bold = False
 
                  # show separated thumbcaches
                 if not include_thumbcache:
                     row_cells = table.add_row().cells
                     row_cells[0].text = f"{labels['thumbcaches']}"
-                    row_cells[1].text = f"{cat.get_separate_thumbs_total()}"
+                    row_cells[1].text = f"{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})"
             
             # format table
+            r = 1
             for row in table.rows[1:]:
-                i=-1
+                r+=1
+                c=-1
                 row.height = table_rowheight
                 for cell in row.cells:
-                    i+=1
+                    c+=1
                     # cell alignment
                     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                     # font
                     run = cell.paragraphs[0].runs[0]
                     run.font.name = text_fontname
                     run.font.size = table_fontsize
-                    if i == 0:
+                    if r != 6 and c == 0: # ignore 'most common locations'
                         # name-column bold
                         run.font.bold = True
+                        cell.width = table_colwidth
+                    if r != 6 and c == 1: # ignore 'most common locations'
+                        cell.width = table_2ndcol
             document.add_paragraph().paragraph_format.space_after = Pt(0)
 
         progress(counter, totallength)
@@ -880,7 +904,7 @@ def write_outputfile_json():
         t_counts = cat.get_counts()
         u_counts = cat.get_unique_counts()
         dates = cat.get_date_range()
-        json_obj["total_over_all_devices"].append({
+        tmp_obj = {
                 "category": cat.name,
                 "count_summary": cat.get_counts_string(),
                 "picture_count": t_counts[1],
@@ -892,9 +916,13 @@ def write_outputfile_json():
                 "creation_startdate": dates[0],
                 "creation_enddate": dates[1],
                 "distribution_over_time": cat.get_grouped_years(),
-                "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]),
-                "separate_thumbcaches": cat.get_separate_thumbs_total()
-            })
+                "percentace_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])
+            }
+        if not include_thumbcache:
+            tmp_obj["separate_thumbcaches_summary"] = f"{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})"
+            tmp_obj["thumbcaches_count"] = cat.get_separate_thumbs_total()
+            tmp_obj["thumbcaches_count_unique"] = cat.get_separate_thumbs_total_unique()
+        json_obj["total_over_all_devices"].append(tmp_obj)
     # update progressbar with total
     counter += 1
     progress(counter, totallength)
@@ -931,7 +959,7 @@ def write_outputfile_json():
                 loc_list.append(f"{shorten_path(k)}")
 
             # create device object
-            dev_obj["categories"].append({
+            tmp_obj = {
                     "category": cat.name,
                     "count_summary": cat.get_counts_string(),
                     "picture_count": t_counts[1],
@@ -943,9 +971,13 @@ def write_outputfile_json():
                     "creation_enddate": dates[1],
                     "distribution_over_time": cat.get_grouped_years(),
                     "percentage_browsercache": get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0]),
-                    "most_common_locations": loc_list,
-                    "separate_thumbcaches": cat.get_separate_thumbs_total()
-                })
+                    "most_common_locations": loc_list
+                }
+            if not include_thumbcache:
+                tmp_obj["separate_thumbcaches_summary"] = f"{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})"
+                tmp_obj["thumbcaches_count"] = cat.get_separate_thumbs_total()
+                tmp_obj["thumbcaches_unique"] = cat.get_separate_thumbs_total_unique()
+            dev_obj["categories"].append(tmp_obj)
         # add device object to list of devices
         json_obj["per_device"].append(dev_obj)
         # update progressbar
@@ -990,7 +1022,7 @@ def write_outputfile_txt():
             file_result.write(f"{labels['percentage_browsercache']}\t\t{get_browser_percent(cat.get_browsercache_total(), cat.get_counts()[0])}\n")
         # show separated thumbcaches
         if not include_thumbcache:
-            file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
+            file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})\n")
     file_result.write("\n")
 
     counter += 1
@@ -1039,7 +1071,7 @@ def write_outputfile_txt():
                     file_result.write(f"- {shorten_path(k)}\n")
                 # show separated thumbcaches
                 if not include_thumbcache:
-                    file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
+                    file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})\n")
         file_result.write("\n")
         # update progressbar
         progress(counter, totallength)
@@ -1110,7 +1142,7 @@ def write_pathdetails():
                 file_result.write(f"- {k} >>> {path.count_total} {details_text}\n")
             # separated thumbcaches
             if not include_thumbcache:
-                file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()}\n")
+                file_result.write(f"{labels['thumbcaches']}\t\t\t{cat.get_separate_thumbs_total()} ({cat.get_separate_thumbs_total_unique()})\n")
                 for p in sorted(cat.separate_thumbs, key=lambda path: cat.separate_thumbs[path].count_total, reverse=True):
                     path = cat.separate_thumbs[p]
                     details_text = f" (p: {path.count_pic}, v: {path.count_vid})" if path.show_details else ""

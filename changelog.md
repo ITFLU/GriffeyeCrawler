@@ -1,5 +1,10 @@
 # GriffeyeCrawler - Changelog
 
+## Version 1.2 - 12.04.2023
+- Feature: Separate Vorschaubilder werden nun zusätzlich auch binary unique ausgegeben
+- Feature: Häufigste Speicherorte werden in der DOCX-Tabelle nun als gemergte Spalte angezeigt
+- Bugfix: 'separate_thumbcaches' wird nun nur bei entsprechenden Einstellungen im JSON ausgegeben
+
 ## Version 1.1.1 - 28.03.2023
 - Update: Leere Kategorie-Tabellen werden nun mit "-" gefüllt
 - Update: Zur besseren Übersicht wird in DOCX die Vorschaubilder-Anzahl in den Total-Tabellen farblich hervorgehoben

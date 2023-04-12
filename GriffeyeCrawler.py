@@ -7,9 +7,8 @@ Asks the user for the csv file and calls gc-cli.py with the default values so th
 
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
-Version: 1.0
 """
-version = "v1.0"
+version = "1.0"
 
 import os
 
