@@ -142,7 +142,7 @@ Bei Bedarf können diverse Einstellungen in der Datei *config.json* vorgenommen 
 
 config.json: `input`
 
-Eine Anpassung des Encoding-Formats `encoding` (Default *utf8* durch Griffeye) ist hier möglich.
+Eine Anpassung des Encoding-Formats `encoding` (Default *utf8* durch Griffeye) ist hier möglich. Ausserdem kann mit `date_format` das Format der Datumsfelder in der CSV-Datei definiert werden. Dazu werden die Python format codes benötigt (https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes).
 
 ### Ergebnisdatei
 

@@ -142,7 +142,7 @@ If necessary, various settings can be made in the *config.json* file. The langua
 
 config.json: `input`
 
-An adaptation of the encoding format `encoding` (default *utf8* by Griffeye) is possible here.
+An adaptation of the encoding format `encoding` (default *utf8* by Griffeye) is possible here. In addition, the format of the date fields in the csv file can be defined with `date_format`. The Python format codes are required for this (https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes).
 
 ### Result file
 
