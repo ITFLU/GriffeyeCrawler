@@ -85,14 +85,21 @@ optional arguments:
   -l language      language for output documents (only partially for json) in locale format (e.g. en_US, de_DE)
                    if locale is not found, only the first part of the locale is checked (e.g. en, de)
                    languages are based on labels.json
-                   (default from config.json)
+                   (default from config.json, result/number_of_showed_paths)
   -n number        number of paths to show per category
   -s separator     defines the column separator
                    (default: automatically detected > comma or semicolon by Griffeye)
+  -d dateformat    defines the format of the input date with format codes > see python help for more details
+                   %d  Day of the month (e.g. 01)
+                   %m  Month (e.g. 12)
+                   %y  Year without century (e.g. 23)
+                   %Y  Year with century (e.g. 2023)
+                   needs to be wrapped in quotes if it contains a space
+                   (default from config.json, input/date_format)
   --date dates     list of datefields to get the dates from separated by comma without space (case insensitive)
                    if a date is empty (01.01.0001, 01.01.1970 or '') the next field in the list is checked
                    needs to be wrapped in quotes if it contains a space
-                   (default from config.json)
+                   (default from config.json, needed_columns/col_date & other/alternative_date_column)
   --exclude path   list of textparts in the filepath field to be excluded from the analysis
                    separated by comma without space (case insensitive)
                    needs to be wrapped in quotes if it contains a space

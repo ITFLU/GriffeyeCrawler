@@ -8,7 +8,7 @@ Analyzes an exported file list of Griffeye per device & category
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
 """
-version = "1.2"
+version = "1.3"
 
 import argparse
 
@@ -212,8 +212,8 @@ class Category:
         return None
     
     def get_date_range(self):
-        min = self.min_date.strftime("%d.%m.%Y")
-        max = self.max_date.strftime("%d.%m.%Y")
+        min = self.min_date.strftime(date_format)
+        max = self.max_date.strftime(date_format)
         if min == empty_date:
             min = labels['undefined']
         if max == empty_date:
@@ -223,7 +223,7 @@ class Category:
     def get_date_range_string(self):
         if self.min_date == empty_date or self.max_date == empty_date:
             return labels['undefined']
-        return self.min_date.strftime("%d.%m.%Y")+" - "+self.max_date.strftime("%d.%m.%Y")
+        return self.min_date.strftime(date_format)+" - "+self.max_date.strftime(date_format)
 
     def get_unique_counts(self):
         """ returns a tuple with total count, picture count & video count of binary unique files (based on the hash) """
@@ -428,18 +428,26 @@ possible values: {", ".join(map(str,valid_formats))} (default: {default_format})
 language for output documents (only partially for json) in locale format (e.g. en_US, de_DE)
 if locale is not found, only the first part of the locale is checked (e.g. en, de)
 languages are based on labels.json
-(default from config.json)''')
+(default from config.json, result/number_of_showed_paths)''')
     parser.add_argument("-n", metavar="number", action="store", type=int, help="number of paths to show per category")
     parser.add_argument("-s", metavar="separator", action="store", type=str, 
                         help='''\
 defines the column separator
 (default: automatically detected > comma or semicolon by Griffeye)''')
+    parser.add_argument("-d", metavar="dateformat", action="store", type=str, help=f'''\
+defines the format of the input date with format codes > see python help for more details
+%%d  Day of the month (e.g. 01)
+%%m  Month (e.g. 12)
+%%y  Year without century (e.g. 23)
+%%Y  Year with century (e.g. 2023)
+needs to be wrapped in quotes if it contains a space
+(default from config.json, input/date_format)''')
     parser.add_argument("--date", metavar="dates", action="store", type=str, 
                         help='''\
 list of datefields to get the dates from separated by comma without space (case insensitive)
 if a date is empty (01.01.0001, 01.01.1970 or '') the next field in the list is checked
 needs to be wrapped in quotes if it contains a space
-(default from config.json)''')
+(default from config.json, needed_columns/col_date & other/alternative_date_column)''')
     parser.add_argument("--exclude", metavar="path", action="store", type=str, 
                         help='''\
 list of textparts in the filepath field to be excluded from the analysis
@@ -494,14 +502,29 @@ def shorten_path(path):
     return first[first.find(os.path.sep)+1:]
 
 def get_date_field(data):
+    has_unix_date = False
     for i in column_index.keys():
+        # ignore non-date-fields
         if not i.startswith("col_date"):
             continue
+        # ignore empty fields ''
+        if len(data[column_index[i]].strip()) == 0:
+            continue
 
-        # if field is empty () or date is empty (01.01.0001) try the next date
-        if len(data[column_index[i]].strip()) > 0 and data[column_index[i]] != empty_date_string:
-            return data[column_index[i]]
-    return empty_date_string
+        date_obj = datetime.strptime(data[column_index[i]][0:10], date_format)
+        # ignore empty dates '01.01.0001' > try next date (datefields_list is integrated...)
+        if date_obj == empty_date:
+            continue
+        # ignore unix dates '01.01.1970'
+        if date_obj == unix_date:
+            has_unix_date = True
+            continue
+        return date_obj
+    
+    return unix_date if has_unix_date else empty_date
+    # if has_unix_date:
+    #     return unix_date
+    # return empty_date
 
 def is_thumbcache(path):
     for group in known_cache_names.values():
@@ -614,8 +637,7 @@ def process_file():
             else:
                 column = line.split(csv_separator)
 
-            data_date = get_date_field(column)
-            date_obj = datetime.strptime(data_date[0:10], "%d.%m.%Y")
+            date_obj = get_date_field(column)
             data_device = column[column_index['col_device']]
             # create device when needed
             if data_device not in devices.keys():
@@ -1184,6 +1206,7 @@ def read_config():
     global known_cache_names
     global number_of_showed_paths
     global include_thumbcache
+    global date_format
 
     with open('config.json', 'r', encoding='utf-8') as c:
         data = c.read()
@@ -1205,6 +1228,7 @@ def read_config():
 
     number_of_showed_paths = config["result"]["number_of_showed_paths"]
     include_thumbcache = config["other"]["include_thumbcache"]
+    date_format = config["input"]["date_format"]
 
 def read_labels():
     """ read labels for multi language support from labels.json """
@@ -1321,7 +1345,6 @@ default_format = "docx"
 valid_formats = ["docx", "json", "txt"]
 
 empty_date = datetime.strptime("01.01.0001", "%d.%m.%Y")
-empty_date_string = "01.01.0001 00:00:00"
 unix_date = datetime.strptime("01.01.1970", "%d.%m.%Y")
 
 # init configs
@@ -1336,10 +1359,9 @@ category_visibilty = {}
 category_sort = {}
 known_cache_paths = {}
 known_cache_names = {}
-# browser_names = []
-# thumbcache_names = []
 number_of_showed_paths = 0
 include_thumbcache = False
+date_format = ""
 
 # init argparse
 args = None
@@ -1358,6 +1380,8 @@ try:
     line_count = get_linecount(input_filename)
     # set separator from options (deactivates automatic detection)
     csv_separator = args.s if args.s else csv_separator
+    # set dateformat from options
+    date_format = args.d if args.d else date_format
     # set number of showed paths from options
     number_of_showed_paths = args.n if args.n else number_of_showed_paths
     # set number of showed paths from options
