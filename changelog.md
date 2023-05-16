@@ -1,5 +1,8 @@
 # GriffeyeCrawler - Changelog
 
+## Version 1.3 - 16.05.2023
+- Feature: Datumsformat in config.json ausgelagert und als Option -d realisiert
+
 ## Version 1.2 - 12.04.2023
 - Feature: Separate Vorschaubilder werden nun zusätzlich auch binary unique ausgegeben
 - Feature: Häufigste Speicherorte werden in der DOCX-Tabelle nun als gemergte Spalte angezeigt

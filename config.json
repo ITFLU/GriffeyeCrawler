@@ -1,6 +1,7 @@
 {
 	"input": {
-		"encoding": "utf8"
+		"encoding": "utf8",
+		"date_format": "%d.%m.%Y"
 	},
 
 	"result": {
