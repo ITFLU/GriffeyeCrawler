@@ -8,7 +8,7 @@ Analyzes an exported file list of Griffeye per device & category
 (c) 2023, Luzerner Polizei
 Author:  Michael Wicki
 """
-version = "1.3"
+version = "1.3.1"
 
 import argparse
 
@@ -594,7 +594,7 @@ def convert_line(line, linenumber):
         # get range before and after the field
         second_part = line[pos_end+2:-1]   # +1 = ", +1 = separator, -1 = general
         if pos_start > 2:
-            first_part = line[:pos_start-2]  # -1 = ", -1 = general 
+            first_part = line[:line.rfind(',', 0, pos_start)]  # -1 = ", -1 = general 
             # add first part to result_list
             result = result + first_part.split(csv_separator) + [field]
         else:
@@ -602,7 +602,7 @@ def convert_line(line, linenumber):
             result = result + [field]
 
         # cut first part of line
-        line = second_part
+        line = second_part + " " # add a blank to prevent problems on cutting out the second_part (missing \n)
     result = result + second_part.split(csv_separator)
     return result
 

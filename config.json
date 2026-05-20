@@ -31,15 +31,22 @@
 	],
 
 	"categories": [
-		{ "name": "Legale Pornographie", "legality": true, "sort": 9, "show_in_report": false },
+		{ "name": "Legale Pornographie", "legality": true, "sort": 13, "show_in_report": false },
 		{ "name": "KiPo", "legality": false, "sort": 1, "show_in_report": true },
 		{ "name": "VKiPo", "legality": false, "sort": 2, "show_in_report": true },
 		{ "name": "Praeferenzindikatoren", "legality": true, "sort": 3, "show_in_report": true },
-		{ "name": "Kind", "legality": true, "sort": 4, "show_in_report": true },
-		{ "name": "Sexuelle_Gewalt", "legality": false, "sort": 5, "show_in_report": true },
-		{ "name": "Verbotene_Gewalt", "legality": false, "sort": 6, "show_in_report": true },
-		{ "name": "Zoophilie", "legality": false, "sort": 7, "show_in_report": true },
-		{ "name": "Possible new victim (CP)", "legality": true, "sort": 8, "show_in_report": true }
+		{ "name": "Kind", "legality": true, "sort": 7, "show_in_report": true },
+		{ "name": "Sexuelle_Gewalt", "legality": true, "sort": 6, "show_in_report": true },
+		{ "name": "Verbotene_Gewalt", "legality": false, "sort": 5, "show_in_report": true },
+		{ "name": "Zoophilie", "legality": false, "sort": 4, "show_in_report": true },
+		{ "name": "???", "legality": false, "sort": 8, "show_in_report": true },
+		{ "name": "Blacklist", "legality": false, "sort": 9, "show_in_report": true },
+		{ "name": "Whitelist", "legality": false, "sort": 10, "show_in_report": true },
+		{ "name": "Mobile", "legality": false, "sort": 11, "show_in_report": true },
+		{ "name": "Unknown", "legality": true, "sort": 14, "show_in_report": true },
+		{ "name": "Islamistische Propaganda", "legality": true, "sort": 15, "show_in_report": true },
+		{ "name": "Unbedeutend", "legality": true, "sort": 16, "show_in_report": true },
+		{ "name": "Possible new victim (CP)", "legality": true, "sort": 12, "show_in_report": true }
 	],
 
 	"caches": [
@@ -56,12 +63,15 @@
 		{ "name": "Mozilla Firefox", "is_browser": true, "is_thumbcache": false, "path": "Application Support/Firefox/Profiles" },
 		{ "name": "Mozilla Firefox", "is_browser": true, "is_thumbcache": false, "path": "Caches/Firefox/Profiles" },
 		{ "name": "Mozilla Firefox", "is_browser": true, "is_thumbcache": false, "path": ".cache/mozilla/firefox" },
+		{ "name": "Mozilla SeaMonkey", "is_browser": true, "is_thumbcache": false, "path": "Mozilla\\SeaMonkey\\Profiles" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Default\\Cache" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Profile 1\\Cache" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Profile 2\\Cache" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Chrome\\User Data\\Profile 3\\Cache" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Application Support/Google/Chrome" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Caches/Google/Chrome" },
+		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "Caches\\Google\\Chrome" },
+		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": "com.android.chrome\\cache" },
 		{ "name": "Google Chrome", "is_browser": true, "is_thumbcache": false, "path": ".cache/google-chrome/" },
 		{ "name": "Brave Browser", "is_browser": true, "is_thumbcache": false, "path": "Brave-Browser\\User Data\\Default\\Cache" },
 		{ "name": "Brave Browser", "is_browser": true, "is_thumbcache": false, "path": ".cache/BraveSoftware/Brave-Browser" },
@@ -90,7 +100,15 @@
 		{ "name": "Slack", "is_browser": false, "is_thumbcache": false, "path": "AppData\\Roaming\\Slack\\Cache" },
 		{ "name": "Vorschau Windows Explorer", "is_browser": false, "is_thumbcache": true, "path": "Explorer\\thumbcache" },
 		{ "name": "Vorschau Windows Explorer", "is_browser": false, "is_thumbcache": true, "path": "\\thumbcache_" },
-		{ "name": "Vorschau Windows Explorer", "is_browser": false, "is_thumbcache": true, "path": "\\Thumbs.db" }
+		{ "name": "Vorschau Windows Explorer", "is_browser": false, "is_thumbcache": true, "path": "\\Thumbs.db" },
+		{ "name": "Linux Thumbnail Cache", "is_browser": false, "is_thumbcache": true, "path": "cache\\thumbnails" },
+		{ "name": "Video Converter", "is_browser": false, "is_thumbcache": false, "path": "Video Converter Ultimate\\Thumbnail" },
+		{ "name": "UniConverter", "is_browser": false, "is_thumbcache": false, "path": "UniConverter\\Thumbnail" },
+		{ "name": "iMedia Converter", "is_browser": false, "is_thumbcache": false, "path": "iMedia Converter Deluxe\\Thumbnail" },
+		{ "name": "iPhone Thumbcache", "is_browser": false, "is_thumbcache": true, "path": "Media\\PhotoData\\Thumbnails" },
+		{ "name": "Android Thumbnails", "is_browser": false, "is_thumbcache": true, "path": "\\.thumbnails" },
+		{ "name": "Samsung Gallery Cache", "is_browser": false, "is_thumbcache": true, "path": "com.sec.android.gallery3d\\cache" },
+		{ "name": "Samsung Browser", "is_browser": true, "is_thumbcache": false, "path": "sec.android.app.sbrowser\\cache" }
 	]
 }
 

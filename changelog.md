@@ -1,5 +1,9 @@
 # GriffeyeCrawler - Changelog
 
+## Version 1.3.1 - 12.08.2025
+- Bugfix: Fehler in convert_line korrigiert, welcher in seltenen Fällen zu einer Spaltenverschiebung führte
+- Bugfix: Fehler in convert_line korrigiert, welcher bei mehrfach auftretenden Spalten mit Hochkomma zum Abschneiden der letzten Ziffer in der Zeile führte
+
 ## Version 1.3 - 16.05.2023
 - Feature: Datumsformat in config.json ausgelagert und als Option -d realisiert
 
